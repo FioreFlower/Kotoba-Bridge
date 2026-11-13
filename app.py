@@ -16,6 +16,7 @@ from setup_ui import RegionPicker
 from study import StudyStore
 from study_ui import Subtitle, StudyWindow
 from core import Region, ReaderError, StableText, normalize
+from ocr_feedback import preview_text, usage_label
 from credentials import KeyStore, remove_legacy_keys, valid_key
 from overlay_settings import load_opacity, save_opacity
 
@@ -356,7 +357,8 @@ class App:
             self.root.deiconify();self.subtitle.window.deiconify()
         def selected(region):
             self.set_region(region);restore()
-            self.status.set('영역을 선택했습니다. 로컬 OCR 미리보기로 원문을 확인하세요.')
+            self.status.set('영역을 선택했습니다. 로컬 OCR 미리보기를 실행합니다. 외부 전송 없음.')
+            self.root.after(100,self.preview)
         def show():
             try:
                 import mss
@@ -594,14 +596,14 @@ class App:
                         self.engine.set(text['path'])
                         if text['then_start']:self.root.after(0,self.start)
                 if kind == 'preview':
-                    self.local_output((text.strip() or '[인식된 글자 없음]')+'\n\n[로컬 OCR 미리보기 · 번역 API 전송 없음]')
-                    self.status.set('인식 원문을 확인하세요. 잘못 잡혔다면 영역을 좁히거나 jpn 언어팩을 점검하세요.')
+                    self.local_output(preview_text(text))
+                    self.status.set('원본과 후보를 비교하세요. 배경 문자가 섞이면 대사 줄만 다시 선택하세요. 후보는 자동 번역에 적용하지 않습니다.')
                 if kind == 'text':
                     self.display(text)
                     source, translation = text.split('\n\n', 1)
                     self.study.record(source, translation)
                     b = self.translator.budget
-                    self.status.set(f'실행 중 · 예약 사용량 {b.calls}/100회 · {b.chars}/10,000자')
+                    self.status.set(usage_label(b.calls,b.chars,demo=bool(self.mode and self.mode[0]),local=self.is_local()))
         except queue.Empty:
             pass
         if self.running and not self.busy and time.monotonic() >= self.ready_at:
