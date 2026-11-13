@@ -25,7 +25,7 @@
 | giflib | MIT |
 | libwebp | BSD-3-Clause |
 | openjpeg | BSD-2-Clause |
-| libspng | BSD-2-Clause |
+| libspng | BSD-2-Clause AND libpng-2.0; 합본 고지 포함 |
 | libtiff | libtiff 라이선스 |
 | vcpkg CMake 보조 ports | MIT, 빌드 도구이며 설치된 고지문도 보존 |
 

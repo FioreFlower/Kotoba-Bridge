@@ -4,9 +4,11 @@
 
 Windows 우선 Go 코어 + Python/Tk 네이티브 데스크톱 UI 소스 MVP. 일본어 텍스트 어드벤처의 **가로쓰기 대사 영역**을 자동 캡처하여 로컬 OCR → DeepL 일본어/한국어 번역 → 항상 위에 있는 별도 자막 창에 표시합니다. 수동 스크린샷 저장이나 복사 반복이 필요하지 않습니다. 실제 게임 적용은 Windows 수동 인수 테스트 후 사용하세요.
 
+OCR·일본어 모델·런타임 포함 설치형/포터블 빌드를 추가했습니다. 실제 생성 성공은 최신 Actions를 확인하세요. 일반 사용자는 개발 소스 실행 대신 INSTALLATION.md의 실행 패키지를 사용합니다. 포터블은 전체 폴더를 압축 해제하는 방식이며 EXE 단일 파일이 아닙니다.
+
 0.2 개발 브랜치의 설치 후보·초기 설정 안내는 [INSTALLATION.md](INSTALLATION.md), 선택 가능한 후킹 입력원 검토와 미구현 범위는 [docs/TEXT_INPUT_SOURCES.md](docs/TEXT_INPUT_SOURCES.md)에 있습니다.
 
-## 빠른 실행 (Windows 10/11, Python 3.11 권장)
+## 개발 소스 실행 (Windows 10/11, Python 3.11 권장)
 
 1. GitHub 저장소를 clone하거나 소스 ZIP을 일반 사용자 폴더에 풉니다. Python의 tkinter가 포함된 공식 Windows 설치본을 사용합니다.
 2. **GitHub 소스 ZIP에는 `kotoba-core.exe`가 없습니다.** Go를 설치하고 아래 명령으로 코어를 빌드합니다. 별도로 전달된 Library 개발 번들에는 Linux에서 교차 빌드한 미서명 Windows x64 코어가 있으나 Windows 실기 미검증입니다. 정식 서명 설치본은 아직 제공하지 않습니다. PR의 미서명 개발 설치 후보에는 코어와 UI 런타임을 동봉했습니다.
@@ -28,7 +30,7 @@ Python 3.11이 설치되어 있다면 `setup_windows.cmd`로 위 설치와 첫 �
 
 ## 실제 게임 연결
 
-1. Tesseract 5와 `jpn.traineddata`를 설치합니다. 공식 설치 안내: https://tesseract-ocr.github.io/tessdoc/Installation.html . Windows 설치본은 공식 안내가 연결하는 배포처의 출처를 확인하세요. 이 ZIP에는 실행 파일·언어팩을 재배포하지 않습니다.
+1. OCR 포함 배포본은 동봉된 엔진과 `jpn.traineddata`를 초기 설정에서 확인합니다. 다음 별도 설치 절차는 개발 소스 실행/복구용입니다. 공식 설치 안내: https://tesseract-ocr.github.io/tessdoc/Installation.html . Windows 설치본은 공식 안내가 연결하는 배포처의 출처를 확인하세요. 이 ZIP에는 실행 파일·언어팩을 재배포하지 않습니다.
 2. `tesseract --list-langs`에 `jpn`이 나오는지 확인합니다. PATH에 없다면 실행할 PowerShell에서 다음처럼 실제 설치 경로를 지정합니다.
 
 ```powershell
@@ -82,7 +84,7 @@ GitHub 소스에는 실행 바이너리·설치 프로그램·서명된 MSIX가 
 
 대화 지우기는 번역 문맥/캐시만 지웁니다. 학습 창의 `기록·카드 전체 비우기`는 메모리의 학습 데이터까지 지웁니다. 내보낸 JSON은 평문이며 탐색기에서 별도 삭제해야 합니다. 브라우저 사전 검색 기록도 별도입니다. 보관/전송 경계와 사전 라이선스 자료는 DESIGN.md에 있습니다.
 
-프로세스 분리와 통신 규약은 ARCHITECTURE.md, 변경 경위는 CHANGELOG.md를 참고하세요. Windows 설치본은 packaging/의 레시피를 Windows에서 빌드·검증·서명해야 하며, Windows installer candidate CI에서 미서명 설치 후보와 설치/제거 검사 보고서를 생성합니다. 빌드 성공 여부는 해당 PR의 Actions 결과를 확인하세요. 기본 후보에는 OCR 엔진이 포함되지 않으며 초기 설정에서 별도 설치한 Tesseract와 일본어 모델을 확인합니다.
+프로세스 분리와 통신 규약은 ARCHITECTURE.md, 변경 경위는 CHANGELOG.md를 참고하세요. Windows 설치본은 packaging/의 레시피를 Windows에서 빌드·검증·서명해야 하며, Windows installer candidate CI에서 미서명 설치 후보와 설치/제거 검사 보고서를 생성합니다. 빌드 성공 여부는 해당 PR의 Actions 결과를 확인하세요. 새 빌드는 소스에서 빌드한 OCR과 일본어 모델을 포함하고 필수 OCR self-test를 통과해야 artifact를 제공합니다. 기존 OCR 미포함 후보와 구분하세요.
 
 ## 오픈소스
 

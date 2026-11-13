@@ -2,7 +2,7 @@ Kotoba Bridge is an unsigned development candidate for Windows 10 22H2 x64 and W
 
 The app and its Go core are installed together. Python and Go do not need to be installed separately to run this package.
 
-The default package does NOT include Tesseract OCR or the Japanese OCR model. Offline demo works without either. For real game capture, install Tesseract and the jpn model from a trusted source and select/check them in the app.
+This package includes Tesseract OCR built from pinned sources and the official Japanese OCR model. Separate OCR or language-pack installation is not required. First check the bundled engine and local OCR preview in the app.
 
 No API key is included. Translation is off until you supply your own key and consent to text transmission. Demo, environment checks and local OCR preview do not call a paid translation API.
 

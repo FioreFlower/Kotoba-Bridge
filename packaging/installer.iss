@@ -1,4 +1,4 @@
-; Unsigned development candidate. Tesseract is NOT included in the default package.
+; Unsigned development candidate with source-built Tesseract and Japanese OCR model.
 [Setup]
 AppId=KotobaBridgePrototype
 AppName=Kotoba Bridge
