@@ -47,3 +47,27 @@ class ModelsTests(unittest.TestCase):
   a.local_port=Mock();a.local_port.get.return_value='8087';a.local_model=Mock();a.local_model.get.return_value='kotoba-local';a.bridge=Mock();a.key_store=Mock();a.key=Mock();a.credentials_blocked=True
   a.configure_credentials(False,False);a.key_store.load.assert_not_called();a.key.get.assert_not_called()
   self.assertEqual(a.bridge.call.call_args.kwargs['key'],'')
+
+ def test_uninstall_manager_close_exits_hidden_app(self):
+  from local_ui import LocalWindow
+  window=LocalWindow.__new__(LocalWindow);window.cancel=Mock();window.window=Mock();window.app=Mock()
+  window.app.manage_models_only=True;window.app.local_window=window
+  window.close()
+  window.cancel.set.assert_called_once();window.window.destroy.assert_called_once()
+  window.app.close.assert_called_once();self.assertIsNone(window.app.local_window)
+  self.assertFalse(window.app.manage_models_only)
+
+ def test_locked_model_delete_reports_failure_and_preserves_cards(self):
+  with tempfile.TemporaryDirectory() as d,patch('local_models.data_folder',return_value=Path(d)):
+   p=m.model_path();p.parent.mkdir();p.write_bytes(b'model')
+   card=Path(d)/'cards.json';card.write_text('[]')
+   with patch.object(Path,'unlink',side_effect=PermissionError()):
+    with self.assertRaises(ReaderError):m.delete_model('qwen25-1.5b')
+   self.assertTrue(p.exists());self.assertEqual(card.read_text(),'[]')
+
+ def test_listening_server_blocks_deletion_gate(self):
+  import socket
+  server=socket.socket();server.bind(('127.0.0.1',0));server.listen(1)
+  try:self.assertTrue(m.local_server_present(server.getsockname()[1]))
+  finally:server.close()
+  self.assertTrue(m.local_server_present('invalid'))

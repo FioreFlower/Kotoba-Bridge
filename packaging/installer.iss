@@ -41,6 +41,7 @@ begin
   begin
     if MsgBox('다운로드 모델을 함께 제거하려면 먼저 모델 관리 창에서 개별 삭제하세요.' + #13#10 +
       'API 키, 설정, 복습 카드는 프로그램 제거로 삭제하지 않습니다. 키는 앱의 API 키 지우기, 카드는 별도 파일 관리가 필요합니다.' + #13#10 +
+      '모델 삭제는 즉시 적용되며 프로그램 제거 취소로 복구되지 않습니다.' + #13#10 +
       '지금 모델 관리 창을 열까요? 닫으면 프로그램 제거를 계속합니다.', mbConfirmation, MB_YESNO) = IDYES then
     begin
       if not Exec(ExpandConstant('{app}\KotobaBridge.exe'), '--manage-models', '', SW_SHOWNORMAL, ewWaitUntilTerminated, Code) then

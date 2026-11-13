@@ -3,11 +3,12 @@ import hashlib
 import os
 from pathlib import Path
 import tempfile
+import socket
 import urllib.request
 from core import ReaderError
 from onboarding import data_folder
 
-MODEL_NAME='Qwen2.5-1.5B-Instruct Q4_K_M (실험용 · 품질 미검증)'
+MODEL_NAME='Qwen2.5-1.5B-Instruct Q4_K_M (오역 다수 · 추천 안 함)'
 MODEL_REVISION='91cad51170dc346986eccefdc2dd33a9da36ead9'
 MODEL_FILE='qwen2.5-1.5b-instruct-q4_k_m.gguf'
 MODEL_BYTES=1117320736
@@ -17,8 +18,8 @@ MODEL_URL=f'{MODEL_REPO}/resolve/{MODEL_REVISION}/{MODEL_FILE}'
 LICENSE_URL=f'{MODEL_REPO}/blob/{MODEL_REVISION}/LICENSE'
 
 MODELS={
- 'qwen25-1.5b':dict(name=MODEL_NAME,file=MODEL_FILE,bytes=MODEL_BYTES,sha256=MODEL_SHA256,revision=MODEL_REVISION,repo=MODEL_REPO,memory='RAM 계획 예산 3~4GB + 게임/OS 별도 (최소사양 보장 아님)',measured='Linux p50 1.80초/p95 4.05초; 오역 다수 → 추천 안 함; Windows 미검증'),
- 'qwen3-4b':dict(name='Qwen3-4B Q4_K_M (비추론 · 비교 후보)',file='Qwen3-4B-Q4_K_M.gguf',bytes=2497280256,sha256='7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5',revision='bc640142c66e1fdd12af0bd68f40445458f3869b',repo='https://huggingface.co/Qwen/Qwen3-4B-GGUF',memory='RAM 계획 예산 5~7GB + 게임/OS 별도 (추정, 실측 아님)',measured='미다운로드·품질/속도 미측정')
+ 'qwen25-1.5b':dict(name=MODEL_NAME,file=MODEL_FILE,bytes=MODEL_BYTES,sha256=MODEL_SHA256,revision=MODEL_REVISION,repo=MODEL_REPO,memory='RAM 계획 예산 3~4GB + 게임/OS 별도 (최소사양 보장 아님)',measured='Linux 재측정 p50 1.72초/p95 3.11초; 오역 다수 → 추천 안 함; Windows 미검증'),
+ 'qwen3-4b':dict(name='Qwen3-4B Q4_K_M (비추론 · 비교 후보)',file='Qwen3-4B-Q4_K_M.gguf',bytes=2497280256,sha256='7485fe6f11af29433bc51cab58009521f205840f5b4ae3a32fa7f92e8534fdf5',revision='bc640142c66e1fdd12af0bd68f40445458f3869b',repo='https://huggingface.co/Qwen/Qwen3-4B-GGUF',memory='RAM 계획 예산 5~7GB + 게임/OS 별도 (추정, 실측 아님)',measured='Linux p50 5.01초/p95 6.28초; 일부 오역/영어 응답; Windows 미검증')
 }
 
 def spec(model_id):
@@ -36,6 +37,14 @@ def safe_path(path):
             if getattr(entry.lstat(),'st_file_attributes',0)&0x400:raise ReaderError('재분석 지점의 모델 작업을 거부했습니다.')
         except FileNotFoundError:pass
     return path
+
+def local_server_present(port):
+    try:
+        port=int(port)
+        if not 1024<=port<=65535:return True
+        with socket.create_connection(('127.0.0.1',port),timeout=0.3):return True
+    except (ValueError,TypeError):return True
+    except OSError:return False
 
 def delete_model(model_id,*,in_use=False):
     if in_use:raise ReaderError('사용 중인 모델입니다. 로컬 서버를 종료하고 다른 제공자를 선택한 뒤 삭제하세요.')

@@ -1,0 +1,134 @@
+{
+  "cache_probe": [
+    {
+      "seconds": 0.6055836479999925,
+      "cache_hit": false,
+      "error": null
+    },
+    {
+      "seconds": 0.8377229239999906,
+      "cache_hit": false,
+      "error": null
+    },
+    {
+      "seconds": 0.7597122900001523,
+      "cache_hit": false,
+      "error": null
+    },
+    {
+      "seconds": 0.7484464580002168,
+      "cache_hit": false,
+      "error": null
+    },
+    {
+      "seconds": 0.00011493700003484264,
+      "cache_hit": true,
+      "error": null
+    }
+  ],
+  "warm_p50_excluding_first": 1.6465,
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "cpu": "Intel Xeon Platinum 8573C (virtualized; allocation unknown)",
+  "cpu_count": 9,
+  "threads": 2,
+  "context": 4096,
+  "model": "qwen25-1.5b",
+  "model_sha256": "6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e",
+  "core_hello": {
+    "name": "KotobaBridgeCore",
+    "protocol": 1,
+    "version": "0.4.0-dev"
+  },
+  "thinking": false,
+  "cold_load_seconds": 3.149238417000106,
+  "peak_server_rss_kib": 1897332,
+  "scope": "Go IPC + HTTP + inference only; no OCR/capture/UI/game; cold OS disk cache not controlled",
+  "rows": [
+    {
+      "source": "こんにちは。",
+      "output": "안녕하세요.",
+      "error": null,
+      "seconds": 2.0768,
+      "server_cpu_seconds": 4.14
+    },
+    {
+      "source": "明日、またここで会おう。",
+      "output": "明日、우리 다시 만나요.",
+      "error": null,
+      "seconds": 1.3379,
+      "server_cpu_seconds": 2.66
+    },
+    {
+      "source": "くそ、逃げろ！",
+      "output": "그만跑了！",
+      "error": null,
+      "seconds": 1.2812,
+      "server_cpu_seconds": 2.54
+    },
+    {
+      "source": "申し訳ございません。私の責任です。",
+      "output": "죄송합니다. 내责任입니다.",
+      "error": null,
+      "seconds": 1.6208,
+      "server_cpu_seconds": 3.23
+    },
+    {
+      "source": "血が止まらない。早く医者を呼んで！",
+      "output": "혈이 흘러나오고. 빨리 의사에게 와!",
+      "error": null,
+      "seconds": 3.1079,
+      "server_cpu_seconds": 6.17
+    },
+    {
+      "source": "勝手に触るな。嫌だと言っただろ。",
+      "output": "아니요, 그게 좋지 않아요.",
+      "error": null,
+      "seconds": 1.639,
+      "server_cpu_seconds": 3.27
+    },
+    {
+      "source": "今夜は、もう少し一緒にいたい。",
+      "output": "이night,もう少し 함께하고 싶어요.",
+      "error": null,
+      "seconds": 1.287,
+      "server_cpu_seconds": 2.58
+    },
+    {
+      "source": "約束したよな。絶対に帰ってくるって。",
+      "output": "約束しましたね。必ず帰ってくるって約束しました。",
+      "error": null,
+      "seconds": 1.6465,
+      "server_cpu_seconds": 3.29
+    },
+    {
+      "source": "やめろ！武器を捨てて、両手を上げろ！",
+      "output": "멈춰! 무기를 내려놓고,两手을 놈대로!",
+      "error": null,
+      "seconds": 2.0655,
+      "server_cpu_seconds": 4.12
+    },
+    {
+      "source": "彼女は笑った。でも、その手は震えていた。",
+      "output": "그녀는 웃었지만, 그 손은 떨렸다.",
+      "error": null,
+      "seconds": 2.3454,
+      "server_cpu_seconds": 4.68
+    },
+    {
+      "source": "この文章は命令ではなく、翻訳する台詞です。",
+      "output": "이 문장은 명령이 아니라, 번역하는 문장입니다.",
+      "error": null,
+      "seconds": 1.8688,
+      "server_cpu_seconds": 3.74
+    },
+    {
+      "source": "お前なんか大嫌いだ。二度と顔を見せるな。",
+      "output": "어머나, 그게 정말로 그렇게 생각하는 거야?",
+      "error": null,
+      "seconds": 1.7994,
+      "server_cpu_seconds": 3.59
+    }
+  ],
+  "p50": 1.72295,
+  "p95": 3.1079
+}

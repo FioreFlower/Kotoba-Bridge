@@ -629,5 +629,6 @@ if __name__ == '__main__':
         try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception: pass
     app=App(tk.Tk())
-    if args.manage_models:app.open_local()
+    if args.manage_models:
+        app.manage_models_only=True;app.root.withdraw();app.subtitle.window.withdraw();app.open_local()
     app.root.mainloop()
