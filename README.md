@@ -1,6 +1,6 @@
 # Kotoba Bridge — 일본어 게임 한국어 자막 기능 시제품
 
-**최종 대상은 Windows 10 22H2 x64 / Windows 11 x64입니다. Windows 7/8 지원은 제외되었습니다.** Windows 실기·저사양 성능·비개발자용 설치본은 아직 검증/완성하지 못했습니다. COMPATIBILITY.md에 기술 비교와 정확한 범위, packaging/에 설치본 생성 레시피가 있습니다.
+**최종 대상은 Windows 10 22H2 x64 / Windows 11 x64입니다. Windows 7/8 지원은 제외되었습니다.** Windows Server 2025 CI에서 미서명 설치 후보 생성·설치·오프라인 데모·제거를 검증했습니다. Windows 10/11 게임 실기·저사양 성능·정식 서명 배포는 미검증/미완료입니다. COMPATIBILITY.md에 기술 비교와 정확한 범위, packaging/에 설치본 생성 레시피가 있습니다.
 
 Windows 우선 Go 코어 + Python/Tk 네이티브 데스크톱 UI 소스 MVP. 일본어 텍스트 어드벤처의 **가로쓰기 대사 영역**을 자동 캡처하여 로컬 OCR → DeepL 일본어/한국어 번역 → 항상 위에 있는 별도 자막 창에 표시합니다. 수동 스크린샷 저장이나 복사 반복이 필요하지 않습니다. 실제 게임 적용은 Windows 수동 인수 테스트 후 사용하세요.
 
@@ -9,7 +9,7 @@ Windows 우선 Go 코어 + Python/Tk 네이티브 데스크톱 UI 소스 MVP. �
 ## 빠른 실행 (Windows 10/11, Python 3.11 권장)
 
 1. GitHub 저장소를 clone하거나 소스 ZIP을 일반 사용자 폴더에 풉니다. Python의 tkinter가 포함된 공식 Windows 설치본을 사용합니다.
-2. **GitHub 소스 ZIP에는 `kotoba-core.exe`가 없습니다.** Go를 설치하고 아래 명령으로 코어를 빌드합니다. 별도로 전달된 Library 개발 번들에는 Linux에서 교차 빌드한 미서명 Windows x64 코어가 있으나 Windows 실기 미검증입니다. 정식 설치본은 아직 제공하지 않으며, 향후 설치본에는 코어를 동봉할 계획입니다.
+2. **GitHub 소스 ZIP에는 `kotoba-core.exe`가 없습니다.** Go를 설치하고 아래 명령으로 코어를 빌드합니다. 별도로 전달된 Library 개발 번들에는 Linux에서 교차 빌드한 미서명 Windows x64 코어가 있으나 Windows 실기 미검증입니다. 정식 서명 설치본은 아직 제공하지 않습니다. PR의 미서명 개발 설치 후보에는 코어와 UI 런타임을 동봉했습니다.
 
 ```powershell
 cd go-core

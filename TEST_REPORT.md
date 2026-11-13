@@ -1,3 +1,9 @@
+## 0.2 Windows CI 설치 후보 검증
+
+[실행 43420625994](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43420625994)에서 Windows Server 2025 x64 / Python 3.11.9 / Go 1.27.4로 Go 테스트, Python 45개(위젯 생성 2개 포함), PyInstaller 동결 앱 self-test, Inno Setup 설치본 생성, 설치 후 오프라인 데모 self-test와 제거가 모두 통과했다. 빌드 대상은 PR 가상 merge 2de08f2f48fc62c09a31b842c8a804cf974fed7c, 소스 head 53c028979010d30cd3e453a1786bf3009e83422c이다. 이후 변경은 문서뿐이다.
+
+설치 EXE SHA256: `eb8c873c4d90a813d1eed72476d9ba6bfabbd34ef06b1be96ae037ac696dbc97`. 미서명 개발 후보이며 OCR 엔진/모델은 미포함. 다운로드한 artifact와 내부 설치본 체크섬, 두 self-test 보고서를 확인했다. Windows 10/11 장비의 실제 게임·화면 캡처·클릭 통과·DPI·일본어 OCR·API 연결·성능은 여전히 미검증이다. 서명·의존성 취약점 전수 감사와 일반 사용자 릴리스는 완료하지 않았다.
+
 ## 0.2 개발 브랜치 검증 (Linux, 2026-11-13)
 
 Python 45개 중 43개 통과, GUI 2개는 DISPLAY 없음으로 건너뜀. Go 18개 테스트와 go vet 통과. 앱 오프라인 self-test에서 코어 0.2.0, 데모 번역, Python 의존성 확인. 유료 API 호출 없음. 일본어 OCR 모델·Windows 게임·클릭 통과·DPI·저사양 성능은 미검증. Windows CI 및 설치 후보 결과는 PR에서 별도 확인하며 CI의 오프라인 검사는 게임 인수 검사를 대체하지 않음.

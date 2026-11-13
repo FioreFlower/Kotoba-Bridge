@@ -32,7 +32,7 @@ UI가 같은 설치 폴더의 `kotoba-core.exe`를 shell 없이 자식으로 실
 
 ## 패키징 및 업데이트
 
-하나의 설치파일 안에 UI, Go core, Python/Tk runtime, Tesseract와 jpn 모델 및 라이선스를 함께 넣는 onedir 패키징을 계획했다. `packaging/build_windows.ps1`과 `installer.iss`가 빌드 레시피다. 실제 서명·설치·삭제 테스트는 미수행이다. 완성 설치본은 제공하지 않는다.
+하나의 설치파일 안에 UI, Go core, Python/Tk runtime, Tesseract와 jpn 모델 및 라이선스를 함께 넣는 onedir 패키징을 계획했다. `packaging/build_windows.ps1`과 `installer.iss`가 빌드 레시피다. 0.2 CI는 UI/코어/런타임을 함께 패키징하고 오프라인 설치·삭제 검사를 수행한다. 성공 여부는 해당 Actions 결과를 확인한다. 기본 후보에는 Tesseract/모델이 빠지며 별도로 설치한다. 서명과 Windows 10/11 게임 인수 검사는 미수행이다.
 
 앱/UI/core를 한 릴리스로 원자적으로 교체하고 프로토콜이 다르면 실행을 거절한다. 현 버전에는 자동 업데이트가 없으며 installer 재설치를 통한 업데이트만 계획한다. 사용자 복습 파일은 앱 설치 폴더가 아닌 사용자가 고른 위치에 저장되어 업데이트/제거와 독립적이다.
 
