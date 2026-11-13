@@ -92,7 +92,7 @@ class CliSession:
     CLI has no detach acknowledgement; close must never claim hook removal.
     """
     def __init__(self):
-        self.process=None;self.candidates=CandidateSession();self.events=queue.Queue(64)
+        self.process=None;self.job=None;self.candidates=CandidateSession();self.events=queue.Queue(64)
         self.stopped=threading.Event();self.failure=None;self.target=None
     def connect(self,folder,target,identity,consent=False):
         if sys.platform!='win32':raise ReaderError('Windows 전용 실험 기능입니다.')
@@ -106,6 +106,8 @@ class CliSession:
         try:
             self.process=subprocess.Popen([str(exe)],cwd=str(exe.parent),stdin=subprocess.PIPE,stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,encoding='utf-16-le',errors='strict',env=env,creationflags=0x08000000)
+            from managed_engine import WindowsJob
+            self.job=WindowsJob(self.process) # Own the CLI only; never put the game in this job.
             if identity(target.pid)!=target:raise ReaderError('연결 직전 게임 식별자가 바뀌었습니다.')
             self.process.stdin.write(command('attach',target.pid));self.process.stdin.flush()
             threading.Thread(target=self._read,daemon=True).start()
@@ -158,8 +160,10 @@ class CliSession:
                 try:p.wait(timeout=2)
                 except subprocess.TimeoutExpired:pass
             finally:
+                if self.job:self.job.close();self.job=None
                 if p.stdout:p.stdout.close()
                 if p.stdin and not p.stdin.closed:p.stdin.close()
         self.process=None
         while not self.events.empty():self.events.get_nowait()
+        if p is None:return '입력 중지 · 연결된 CLI 없음'
         return '입력 중지·해제 요청 완료. 엔진이 해제를 확인하지 않아 후크 제거 완료는 확인할 수 없습니다. 필요하면 게임을 저장 후 직접 종료하세요.'

@@ -6,22 +6,32 @@ from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from hook_cli import CliSession,verify_cli
 from hook_processes import identity
+from hook_stream import HookStream
 p=argparse.ArgumentParser();p.add_argument('--engine',required=True);p.add_argument('--fixture',required=True);p.add_argument('--report',required=True);a=p.parse_args()
 exe=verify_cli(Path(a.engine).resolve(),'x64')
 # First smoke: empty stdin, so no attach/detach/hook commands can be issued.
 r=subprocess.run([str(exe)],input='',encoding='utf-16-le',stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10,cwd=exe.parent)
 assert r.returncode==0 and 'Usage:' in r.stdout
 # Give upstream's 500 ms sentence flush a quiet gap between fixture draws.
-fixture=subprocess.Popen([str(Path(a.fixture).resolve())]);client=CliSession();report={'engine':'official Textractor 5.2.0 x64','cli_no_attach_smoke':True,'synthetic_fixture_only':True,'actual_game_test':False,'candidate_received':False,'detach_acknowledged':False}
+fixture=subprocess.Popen([str(Path(a.fixture).resolve())]);client=CliSession();outputs=[];report={'engine':'official Textractor 5.2.0 x64','cli_no_attach_smoke':True,'synthetic_fixture_only':True,'actual_game_test':False,'candidate_received':False,'detach_acknowledged':False,'mock_continuous_outputs':0,'distinct_mock_sources':0,'foreground_policy_input':'synthetic true; real game foreground UX not tested'}
 try:
  time.sleep(1);target=identity(fixture.pid)
  client.connect(exe.parent,target,identity,consent=True)
- end=time.monotonic()+20
+ end=time.monotonic()+24;stream=HookStream();outputs=[]
  while time.monotonic()<end:
   client.drain()
-  if any('明日' in c.text for c in client.candidates.ranked()):report['candidate_received']=True;break
+  candidates=[c for c in client.candidates.ranked() if '明日' in c.text]
+  if candidates and not stream.active:
+   chosen=candidates[0];client.candidates.select(chosen.identifier);stream.start(chosen.identifier,chosen.text)
+  if stream.active:
+   current=client.candidates.select(stream.selected);stream.update(stream.selected,current,time.monotonic())
+   ready=stream.ready(time.monotonic(),True,False)
+   if ready is not None:outputs.append(ready) # Mock translation sink only; no external API.
+   if len(set(outputs))>=2:report['candidate_received']=True;break
+  report['mock_continuous_outputs']=len(outputs);report['distinct_mock_sources']=len(set(outputs))
   time.sleep(.1)
 finally:
+ report['mock_continuous_outputs']=len(outputs);report['distinct_mock_sources']=len(set(outputs))
  report['stop_status']=client.close()
  if fixture.poll() is None:fixture.terminate()
  fixture.wait(timeout=5)

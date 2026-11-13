@@ -339,31 +339,35 @@ class App:
         from input_ui import InputWindow
         self.input_window=InputWindow(self)
 
-    def translate_input(self,text):
+    def translate_input(self,text,automatic=False,guard=None):
         from input_sources import source_text
         text=source_text(text)
         if self.busy:raise ReaderError('진행 중 작업이 끝난 뒤 다시 눌러 주세요.')
         if not self.transfer_allowed():raise ReaderError('선택한 제공자의 전송 동의가 필요합니다.')
-        self.pause()
+        self.pause(notify_input=not automatic)
         if self.bridge is None:self.bridge=GoBridge()
-        self.configure_credentials(False,self.pro.get())
-        self.key.delete(0,'end');self.mode=(False,self.pro.get())
-        self.translator=GoTranslator(self.bridge)
+        fresh = self.translator is None or self.mode!=(False,self.pro.get()) or bool(self.key.get().strip())
+        if not automatic or fresh:
+            self.configure_credentials(False,self.pro.get())
+            self.key.delete(0,'end');self.mode=(False,self.pro.get())
+            self.translator=GoTranslator(self.bridge)
+            self.bridge.call('clear')
+        # Continuous selection keeps the provider's bounded context/cache until stop/reselection.
         self.manual_context=True
-        # Each reviewed paste is independent; retain session budget, clear old context.
-        self.bridge.call('clear')
         self.stop_event=threading.Event();self.busy=True
         generation=self.generation;stop=self.stop_event;translator=self.translator
+        if automatic and not self.is_local():self.refresh_usage(configure=False)
         def work():
             try:
                 if stop.is_set():return
+                if guard and not guard():raise ReaderError('후킹 입력/게임 상태 변경으로 전송을 중지했습니다.')
                 translated=translator.translate(text)
-                if not stop.is_set():self.results.put((generation,'text',text+'\n\n'+translated))
-            except ReaderError as e:self.results.put((generation,'error',str(e)))
-            except Exception:self.results.put((generation,'error','입력 번역 실패. 자동 재시도하지 않습니다.'))
+                if not stop.is_set():self.results.put((generation,'hook_text' if automatic else 'text',text+'\n\n'+translated))
+            except ReaderError as e:self.results.put((generation,'hook_error' if automatic else 'error',str(e)))
+            except Exception:self.results.put((generation,'hook_error' if automatic else 'error','입력 번역 실패. 자동 재시도하지 않습니다.'))
             finally:self.results.put((generation,'done',''))
         threading.Thread(target=work,daemon=True).start()
-        self.status.set('확인한 외부 원문 1회 번역 중 · 자동 감시 없음')
+        self.status.set('선택한 후킹 후보 연속 번역 중' if automatic else '확인한 외부 원문 1회 번역 중 · 자동 감시 없음')
 
     def reset_manual_context(self):
         # A pasted line must never become context for a later screen capture.
@@ -617,7 +621,9 @@ class App:
         # An engine-check callback queued before Esc/stop may not restart later.
         if generation == self.generation:self.start()
 
-    def pause(self):
+    def pause(self,notify_input=True):
+        if notify_input and getattr(self,'input_window',None) and hasattr(self.input_window,'on_app_pause'):
+            self.input_window.on_app_pause()
         self.running = False; self.stop_event.set(); self.generation += 1
         self.status.set('정지 · 진행 중인 요청은 취소되지 않을 수 있으며 결과는 버립니다.')
 
@@ -744,6 +750,12 @@ class App:
         try:
             while True:
                 generation, kind, text = self.results.get_nowait()
+                if kind == 'hook_error':
+                    # Even an error for an obsolete sentence stops the continuous source.
+                    if self.input_window is not None and hasattr(self.input_window,'on_app_pause'):
+                        self.pause();self.status.set(text)
+                        self.input_window.status.set(text+' · 연속 번역 정지 / 자동 재시도 없음')
+                    continue
                 if kind == 'account_usage':
                     self.usage_busy=False
                     if generation==self.generation and text[0]==self.usage_revision and not self.demo.get() and not self.is_local():self.account_usage.set(text[1])
@@ -765,6 +777,10 @@ class App:
                 if kind == 'preview':
                     self.local_output(preview_text(text))
                     self.status.set('원본과 후보를 비교하세요. 배경 문자가 섞이면 대사 줄만 다시 선택하세요. 후보는 자동 번역에 적용하지 않습니다.')
+                if kind == 'hook_text':
+                    window=self.input_window
+                    if window is None or not hasattr(window,'accept_result') or not window.accept_result(text.split('\n\n',1)[0]):continue
+                    kind='text'
                 if kind == 'text':
                     self.display(text)
                     source, translation = text.split('\n\n', 1)

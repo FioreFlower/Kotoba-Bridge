@@ -50,3 +50,11 @@ def visible_processes():
         return True
     if not u.EnumWindows(callback(visit),0):raise ReaderError('창 목록을 읽지 못했습니다.')
     return sorted(rows.values(),key=lambda p:(p.path.casefold(),p.pid))
+
+def foreground_pid():
+    if os.name!='nt':return None
+    u=c.WinDLL('user32',use_last_error=True)
+    u.GetForegroundWindow.argtypes=[];u.GetForegroundWindow.restype=w.HWND
+    u.GetWindowThreadProcessId.argtypes=[w.HWND,c.POINTER(w.DWORD)];u.GetWindowThreadProcessId.restype=w.DWORD
+    pid=w.DWORD();u.GetWindowThreadProcessId(u.GetForegroundWindow(),c.byref(pid))
+    return pid.value

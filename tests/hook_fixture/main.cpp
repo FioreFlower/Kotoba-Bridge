@@ -8,6 +8,8 @@ int main() {
     HDC dc=GetDC(w);
     // Escaped source avoids compiler locale dependence. Fixed synthetic text only.
     const wchar_t* s=L"\x660E\x65E5\x3001\x307E\x305F\x3053\x3053\x3067\x4F1A\x304A\x3046\x3002";
+    const wchar_t* other=L"\x660E\x65E5\x3001\x3053\x3053\x3067\x5F85\x3064\x3002";
+    if(i%2)s=other;
     TextOutW(dc,10,45,s,lstrlenW(s));ReleaseDC(w,dc);Sleep(1200);
   }
   DestroyWindow(w);return 0;

@@ -50,6 +50,11 @@ class HookCliTests(unittest.TestCase):
   c.candidates.start(True);c.candidates.ingest(c.candidates.generation,'a','明日。')
   message=c.close();p.stdin.write.assert_called_once_with('detach -P123\n');self.assertIsNone(c.process)
   self.assertFalse(c.candidates.active);self.assertIn('확인할 수 없습니다',message)
+ def test_owned_job_is_closed_but_game_is_never_terminated(self):
+  c=CliSession();c.target=ProcessIdentity(123,1,'game.exe','x64')
+  c.process=Mock();c.process.poll.return_value=0;c.job=Mock();job=c.job
+  c.close();job.close.assert_called_once();self.assertIsNone(c.job)
+
  def test_confirmation_rechecks_candidate_after_dialog(self):
   c=CliSession();c.drain=Mock();token=c.candidates.start(True)
   c.candidates.ingest(token,'a','明日。');c.candidates.select('a')
