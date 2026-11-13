@@ -35,7 +35,7 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -buildvcs=false -trimpath -o ko
 | Windows 설치/삭제/서명·보안 제품 호환성 | 레시피만 작성, 미실행 |
 | 비개발자용 설치파일 하나 배포 | 완성 설치 exe 미제공 |
 | 저사양 CPU/RAM/게임 영향 | 실측 없음. 목표·계획만 작성 |
-| GitHub Actions | 초기 실행: Ubuntu 통과, Windows Python 테스트 1개 인코딩 오류. 아래 상세 참조 |
+| GitHub Actions | 실행 #2: Ubuntu/Windows 모두 성공. 초기 인코딩 오류와 수정 내역은 아래 참조 |
 | GitHub 공개 저장소 | 공개 게시 완료: 초기 원격 f6f8b3abffb43ddc37bcf19dd9204cf8740c5d97 |
 
 Go와 Python 테스트 통과는 Windows 게임 호환성·GUI 품질의 증거가 아니다. 기본 테스트는 결제를 발생시키지 않으며 Windows 수동 체크리스트 통과와 별도의 사용자 승인 API 테스트가 필요하다.
@@ -47,7 +47,7 @@ Go와 Python 테스트 통과는 Windows 게임 호환성·GUI 품질의 증거�
 - `ubuntu-latest`: 전체 job 성공.
 - `windows-latest`: Go 테스트, Python 의존성 설치, IPC 코어 빌드 성공. Python 26개 중 25개 성공, `test_roundtrip_and_delete` 1개 오류.
 - 원인: 테스트가 UTF-8 JSON을 `Path.read_text()`의 Windows 기본 CP1252로 읽어 `UnicodeDecodeError` 발생. `StudyStore.export`는 UTF-8로 명시 저장하고 실제 import는 bytes JSON을 읽으므로 production 저장/읽기 코드의 오류로 확인된 것은 아니다.
-- 수정: 테스트의 읽기/fixture 쓰기에 `encoding='utf-8'`를 명시. Linux에서 수정 후 전체 26개 재통과. Windows 재실행은 수정 커밋 게시 후 확인해야 하며 아직 통과로 주장하지 않는다.
+- 수정: 테스트의 읽기/fixture 쓰기에 `encoding='utf-8'`를 명시. Linux에서 수정 후 전체 26개 재통과. 수정 커밋 `47b08f2aad876dedea6ef5a3737b1a5f37f05b5f`의 [Actions 실행 #2](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43418219308)에서 Ubuntu/Windows job 모두 성공했다. 각 플랫폼의 Go 테스트, Python 테스트, IPC core 빌드와 최종 Go 빌드가 통과했다.
 - Actions 경고: 외부 Go 모듈이 없어 go.sum cache 복원 경고, Node 20 기반 action 버전의 폐기 예정 경고가 있었다. 초기 실패의 원인은 이 경고가 아닌 위 테스트 인코딩이다.
 
 Windows CI의 mock/IPC 테스트는 Windows 게임·GUI·OCR·설치본 실기 검증이 아니다. 해당 미검증 항목은 그대로 유지한다.
