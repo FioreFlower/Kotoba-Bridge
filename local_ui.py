@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk,messagebox
 from local_models import MODEL_NAME,MODEL_BYTES,LICENSE_URL,install_model,model_path,MODELS,spec,delete_model,local_server_present
 from core import ReaderError
+from local_runtime import install_runtime, runtime_path
 
 class LocalWindow:
     def __init__(self,app):
@@ -17,7 +18,7 @@ class LocalWindow:
         f.bind('<Configure>',lambda _:canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>',lambda event:canvas.itemconfigure(content,width=event.width))
         ttk.Label(f,text='로컬 번역 · 외부 API 자동 전환 없음',font=('',16,'bold')).pack(anchor='w')
-        ttk.Label(f,text='현재는 별도 llama.cpp 서버 실행이 필요합니다. 원클릭 런타임 설치/실행은 아직 제공하지 않습니다.\n서버를 직접 설치·관리할 수 있는 시험 사용자용입니다.',wraplength=700).pack(anchor='w',pady=8)
+        ttk.Label(f,text='공식 Windows CPU 엔진을 아래 버튼으로 설치할 수 있습니다. 자동 서버 실행은 아직 제공하지 않습니다.\n서버를 직접 설치·관리할 수 있는 시험 사용자용입니다.',wraplength=700).pack(anchor='w',pady=8)
         row=ttk.Frame(f);row.pack(fill='x')
         ttk.Label(row,text='127.0.0.1 포트').pack(side='left');ttk.Entry(row,textvariable=app.local_port,width=8).pack(side='left',padx=6)
         ttk.Label(row,text='모델 별칭').pack(side='left');ttk.Entry(row,textvariable=app.local_model,width=30).pack(side='left',padx=6)
@@ -32,6 +33,7 @@ class LocalWindow:
         ttk.Checkbutton(f,text='위 모델 라이선스 확인 및 선택 모델의 표시된 크기 다운로드에 동의',variable=self.accept).pack(anchor='w')
         if not getattr(app,'manage_models_only',False):
             ttk.Button(f,text='고정 모델 다운로드 / 무결성 확인',command=self.download).pack(anchor='w',pady=6)
+            ttk.Button(f,text='Windows CPU 엔진 설치 / 무결성 확인 (25.1 MB)',command=self.prepare_runtime).pack(anchor='w',pady=6)
         else:
             ttk.Label(f,text='제거 준비: 선택 모델만 즉시 삭제합니다. 프로그램 제거를 나중에 취소해도 모델 삭제는 되돌리지 않습니다.\nAPI 키·설정·복습 카드: 보존. 이 창을 닫으면 프로그램 제거를 계속합니다.',wraplength=700).pack(anchor='w',pady=6)
         self.status=tk.StringVar(value='자동 다운로드 없음 · 설치 후에는 모델 다운로드용 인터넷 연결이 필요 없습니다.')
@@ -59,6 +61,17 @@ class LocalWindow:
             try:
                 p=install_model(accepted=True,model_id=selected,cancel=self.cancel,progress=lambda n,total:self.events.put(f'다운로드 {n*100//total}%'))
                 self.events.put('검증 완료: '+str(p)+' · 서버에서 이 모델을 직접 로드하세요.')
+            except ReaderError as e:self.events.put(str(e))
+            finally:self.events.put(None)
+        threading.Thread(target=work,daemon=True).start()
+    def prepare_runtime(self):
+        if self.busy:return
+        if not messagebox.askyesno('공식 엔진 설치 확인','llama.cpp b12359 Windows x64 CPU 엔진 (약 25.1 MB, 압축 해제 약 64.6 MB)을 GitHub 공식 배포에서 받습니다. MIT 및 LLVM OpenMP 고지를 보존합니다. 고정 SHA-256 검증 후 설치하며 실행하지 않습니다.\n출처: https://github.com/ggml-org/llama.cpp/releases/tag/b12359\n라이선스: https://github.com/ggml-org/llama.cpp/blob/b12359/LICENSE\n저장 위치: '+str(runtime_path())+'\n다운로드 및 라이선스 확인에 동의하나요?',parent=self.window):return
+        self.busy=True;self.status.set('공식 엔진 다운로드/검증 중 · 자동 실행 없음')
+        def work():
+            try:
+                path=install_runtime(accepted=True,cancel=self.cancel,progress=lambda n,total:self.events.put(f'엔진 다운로드 {n*100//total}%'))
+                self.events.put('엔진 준비 완료: '+str(path)+' · 서버 자동 실행은 아직 미구현입니다.')
             except ReaderError as e:self.events.put(str(e))
             finally:self.events.put(None)
         threading.Thread(target=work,daemon=True).start()

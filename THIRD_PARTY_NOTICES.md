@@ -24,3 +24,7 @@ Wiktionary는 사용자가 선택한 페이지를 외부 브라우저에서 여�
 후속 번들 빌드의 Python은 공식 Windows 다운로드 목록에서 확인한 3.13.17로 CI를 고정한다. [공식 Windows 릴리스](https://www.python.org/downloads/windows/). 이전 3.11.9 기반 후보는 보관된 개발 기록이며 최신 배포 기반으로 사용하지 않는다. 런타임/의존성 전체 취약점 부재를 보증하지 않으며 배포 전 현재 보안 공지 검토가 필요하다.
 
 2026-11-13 공식 PyPI JSON 검사에서 이전 Pillow 11.3.0에 보안 공지가 확인되어 13.0.0으로 갱신했다. 그 시점 Pillow 13.0.0/mss 10.0.0/PyInstaller 6.22.3 응답의 vulnerabilities 목록은 비어 있었다(알려지지 않은 취약점 부재 보증 아님). 배포 런타임의 Pillow/mss 다운로드는 requirements-lock.txt에 고정한 공식 PyPI SHA256을 --require-hashes로 검증한다. [Pillow 메타데이터](https://pypi.org/pypi/Pillow/13.0.0/json), [mss 메타데이터](https://pypi.org/pypi/mss/10.0.0/json).
+
+## 선택 설치 llama.cpp CPU 엔진
+
+공식 b12359 Windows x64 CPU ZIP은 앱 실행 파일에 번들하지 않고 사용자 동의 후 선택 다운로드합니다. llama.cpp MIT 고지는 runtime_catalog.py에 보존하며 설치 시 LICENSE-llama.cpp.txt로 기록합니다. ZIP의 LICENSE-LLVM-OpenMP도 보존합니다. 출처: https://github.com/ggml-org/llama.cpp/releases/tag/b12359 . ZIP 및 52개 개별 파일 크기/SHA-256은 runtime_catalog.py에 고정했습니다. 이는 무결성 확인이며 Authenticode 서명이나 백신 통과 보장이 아닙니다.
