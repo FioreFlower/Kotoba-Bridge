@@ -120,6 +120,7 @@ class App:
         self.setup_window = None
         self.region_editor=None;self.placement_editor=None
         self.restore_after_job = False
+        self.usage_busy=False;self.usage_attempt=0;self.usage_revision=0
         self.stable = StableText()
         self.provider=tk.StringVar(value='DeepL')
         self.local_port=tk.StringVar(value='8087');self.local_model=tk.StringVar(value='kotoba-local')
@@ -166,7 +167,10 @@ class App:
         input_row=ttk.Frame(panel);input_row.pack(fill='x')
         ttk.Button(input_row,text='외부 원문 붙여넣기 / 후보 선택 체험',command=self.open_input).pack(side='left')
         ttk.Button(input_row,text='실험: Textractor 후킹 입력',command=self.open_hook).pack(side='left',padx=8)
-        self.status = tk.StringVar(value='준비 · 세션 최대 100회 / 10,000자 · 최소 호출 간격 3초')
+        self.status = tk.StringVar(value='준비 · 앱 안전 제한 적용 · 실제 계정 사용량은 DeepL 조회로 확인')
+        self.account_usage=tk.StringVar(value='DeepL 계정 사용량 미조회 · 데모/로컬에서는 조회하지 않습니다.')
+        ttk.Button(panel,text='DeepL 계정 사용량 새로고침',command=self.refresh_usage).pack(anchor='w')
+        ttk.Label(panel,textvariable=self.account_usage,wraplength=800).pack(anchor='w')
         ttk.Label(panel, textvariable=self.status, wraplength=650).pack(anchor='w', pady=8)
         self.output = tk.Text(panel, height=9, wrap='word', font=('', 16), bg='#17212d', fg='#f3f6fa')
         self.output.pack(fill='both', expand=True)
@@ -188,6 +192,8 @@ class App:
         ttk.Button(overlay_row,text='자막 위치 편집',command=self.edit_overlay).pack(side='left')
         ttk.Button(overlay_row,text='자막 위치·배경 복구',command=self.restore_overlay).pack(side='left')
         self.change_opacity(initial_opacity)
+        self.demo.trace_add('write',self.invalidate_usage)
+        self.pro.trace_add('write',self.invalidate_usage)
         self.consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
         self.local_consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
         for option in [self.provider,self.local_port,self.local_model]:option.trace_add('write',self.provider_changed)
@@ -213,6 +219,38 @@ class App:
         root.after(100, self.poll)
         root.after(200,self.load_overlay_placement)
 
+    def invalidate_usage(self,*_):
+        self.usage_revision+=1
+        self.account_usage.set('설정 변경 · 사용량 미조회')
+
+    def refresh_usage(self,configure=True):
+        if self.demo.get() or self.is_local():
+            self.account_usage.set('데모/로컬 모드 · DeepL 사용량 조회 없음');return
+        if self.usage_busy:return
+        now=time.monotonic()
+        if now-self.usage_attempt<60:
+            return # Keep the API value and its timestamp, never fabricate a newer value.
+        if configure and (self.busy or self.running):
+            self.account_usage.set('번역을 정지한 뒤 수동 조회하세요. 시작 시에는 자동 조회합니다.');return
+        try:
+            if not self.transfer_allowed():raise ReaderError('DeepL 전송 동의 후 조회하세요.')
+            if configure:
+                if self.bridge is None:self.bridge=GoBridge()
+                self.configure_credentials(False,self.pro.get())
+        except ReaderError as e:
+            self.account_usage.set('미조회 · '+str(e));return
+        self.usage_attempt=now;self.usage_busy=True
+        generation=self.generation;bridge=self.bridge;revision=self.usage_revision
+        self.account_usage.set('DeepL 계정 사용량 조회 중 · 대사 전송 없음')
+        def work():
+            try:
+                from account_usage import format_usage
+                message=format_usage(bridge.call('usage'))
+            except ReaderError as e:message='사용량 조회 실패 · '+str(e)+' · 현재 값 알 수 없음'
+            except Exception:message='사용량 조회 실패 · 현재 값 알 수 없음'
+            self.results.put((generation,'account_usage',(revision,message)))
+        threading.Thread(target=work,daemon=True).start()
+
     def is_local(self):
         return hasattr(self,'provider') and self.provider.get()=='로컬 llama.cpp'
 
@@ -221,6 +259,7 @@ class App:
 
     def provider_changed(self,*_):
         self.pause();self.mode=None;self.translator=None
+        self.account_usage.set('제공자/설정 변경 · 사용량 미조회')
         self.status.set('제공자/설정 변경으로 정지했습니다. 선택한 대상의 전송 동의 후 시작하세요. 자동 전환 없음.')
 
     def open_local(self):
@@ -491,6 +530,7 @@ class App:
         self.root.after(350,lambda:threading.Thread(target=work,daemon=True).start())
 
     def save_key(self):
+        self.account_usage.set('키 변경 · 사용량 미조회')
         self.pause()
         if self.busy:
             self.status.set('진행 중 작업이 끝난 뒤 키를 저장하세요.');return
@@ -537,6 +577,7 @@ class App:
         self.key.delete(0,'end')
 
     def forget_key(self):
+        self.account_usage.set('키 삭제 · 사용량 미조회')
         self.pause()
         if self.busy:
             self.status.set('진행 중 작업이 끝난 뒤 키를 삭제하세요.');return
@@ -624,6 +665,7 @@ class App:
             self.stop_event = threading.Event()
             self.generation += 1
             generation=self.generation
+            if not mode[0] and not self.is_local():self.refresh_usage(configure=False)
             if mode[0]:
                 self.target=None;self.running=True;self.ready_at=time.monotonic()+1
                 self.status.set('오프라인 데모 실행 중 · 외부 전송 없음')
@@ -702,6 +744,11 @@ class App:
         try:
             while True:
                 generation, kind, text = self.results.get_nowait()
+                if kind == 'account_usage':
+                    self.usage_busy=False
+                    if generation==self.generation and text[0]==self.usage_revision and not self.demo.get() and not self.is_local():self.account_usage.set(text[1])
+                    else:self.account_usage.set('모드/상태 변경으로 조회 결과 폐기 · 미조회')
+                    continue
                 if kind == 'done':
                     self.busy = False
                     if self.restore_after_job:

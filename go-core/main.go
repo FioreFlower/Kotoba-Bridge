@@ -62,6 +62,7 @@ type Core struct {
 	configured        bool
 	calls, chars      int
 	last              time.Time
+	usageLast         time.Time
 	history           []string
 	cache             map[string]string
 	order             []string
@@ -179,7 +180,7 @@ func (c *Core) translate(text string) (string, error) {
 		return "", errors.New("최소 호출 간격 3초: 잠시 후 재개하세요.")
 	}
 	if c.calls >= 100 || c.chars+n > 10000 {
-		return "", errors.New("세션 사용 한도에 도달했습니다.")
+		return "", errors.New("앱 안전 세션 제한(100회 또는 10,000자)에 도달해 정지합니다. DeepL 계정 사용량/청구액과는 별개입니다.")
 	}
 	c.calls++
 	c.chars += n
@@ -386,6 +387,8 @@ func (c *Core) handle(r Request) (any, error) {
 	case "translate":
 		text, err := c.translate(r.Text)
 		return map[string]any{"text": text, "calls": c.calls, "chars": c.chars}, err
+	case "usage":
+		return c.usage()
 	case "status":
 		remaining := 3*time.Second - c.now().Sub(c.last)
 		retryAfter := int64(0)

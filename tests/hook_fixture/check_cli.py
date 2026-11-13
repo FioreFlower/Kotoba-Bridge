@@ -11,6 +11,7 @@ exe=verify_cli(Path(a.engine).resolve(),'x64')
 # First smoke: empty stdin, so no attach/detach/hook commands can be issued.
 r=subprocess.run([str(exe)],input='',encoding='utf-16-le',stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=10,cwd=exe.parent)
 assert r.returncode==0 and 'Usage:' in r.stdout
+# Give upstream's 500 ms sentence flush a quiet gap between fixture draws.
 fixture=subprocess.Popen([str(Path(a.fixture).resolve())]);client=CliSession();report={'engine':'official Textractor 5.2.0 x64','cli_no_attach_smoke':True,'synthetic_fixture_only':True,'actual_game_test':False,'candidate_received':False,'detach_acknowledged':False}
 try:
  time.sleep(1);target=identity(fixture.pid)

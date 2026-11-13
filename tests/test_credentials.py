@@ -124,7 +124,7 @@ class CredentialFlowTests(unittest.TestCase):
         a=self.app();a.pause=Mock();a.busy=False;a.pro=Mock();a.pro.get.return_value=False
         a.status=Mock();a.key_state=Mock();a.bridge.call.side_effect=ReaderError('dead')
         original=a.bridge
-        with patch('app.remove_legacy_keys',return_value=False):a.save_key()
+        with patch('app.remove_legacy_keys',return_value=False):setattr(a,'account_usage',Mock());a.save_key()
         self.assertIs(a.bridge,original);original.close.assert_called_once()
         self.assertIn('재실행',a.status.set.call_args.args[0])
 

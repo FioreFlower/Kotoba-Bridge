@@ -27,7 +27,7 @@ def region_hint(region, monitor):
     return f'선택: {region.left}, {region.top} · {region.width}×{region.height} 물리 픽셀\n{advice}'
 
 def usage_label(calls, chars, *, demo, local=False):
-    if demo:
-        return f'오프라인 데모(모의 처리) · 공용 세션 한도 {calls}/100회 · {chars}/10,000자 · 현재 외부 전송 없음 · API 과금 없음'
-    prefix = '로컬 번역 · 공용 세션 한도' if local else '외부 API · 공용 세션 한도 (실제 청구액 아님)'
-    return f'{prefix} {calls}/100회 · {chars}/10,000자'
+    # Counters remain enforced internally, but are not presented as account usage.
+    if demo:return '오프라인 데모(모의 처리) · 외부 전송 없음 · API 과금 없음'
+    if local:return '로컬 번역 완료 · 앱 안전 제한 적용'
+    return '번역 완료 · 계정 사용량은 DeepL 조회값 확인 · 앱 안전 제한 적용'

@@ -20,6 +20,6 @@ class FeedbackTests(unittest.TestCase):
   self.assertNotIn('넓은 영역',region_hint(Region(0,0,900,70),monitor))
  def test_usage_modes_never_describe_demo_as_paid(self):
   demo=usage_label(13,100,demo=True,local=True)
-  self.assertIn('모의 처리',demo);self.assertIn('공용 세션 한도 13/100',demo);self.assertIn('API 과금 없음',demo);self.assertIn('외부 전송 없음',demo)
+  self.assertIn('모의 처리',demo);self.assertNotIn('13/100',demo);self.assertIn('API 과금 없음',demo);self.assertIn('외부 전송 없음',demo)
   self.assertIn('로컬 번역',usage_label(13,100,demo=False,local=True))
-  self.assertIn('실제 청구액 아님',usage_label(13,100,demo=False))
+  self.assertIn('DeepL 조회값',usage_label(13,100,demo=False))
