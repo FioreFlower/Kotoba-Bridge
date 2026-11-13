@@ -55,6 +55,13 @@ class HookCliTests(unittest.TestCase):
   c.process=Mock();c.process.poll.return_value=0;c.job=Mock();job=c.job
   c.close();job.close.assert_called_once();self.assertIsNone(c.job)
 
+ def test_close_failure_keeps_owned_process_and_does_not_claim_success(self):
+  import subprocess
+  c=CliSession();c.target=ProcessIdentity(123,1,'game.exe','x64');p=Mock();c.process=p
+  p.poll.return_value=None;p.wait.side_effect=subprocess.TimeoutExpired('owned CLI',2)
+  with self.assertRaises(ReaderError):c.close()
+  self.assertIs(c.process,p);self.assertFalse(c.candidates.active);p.stdout.close.assert_not_called()
+
  def test_confirmation_rechecks_candidate_after_dialog(self):
   c=CliSession();c.drain=Mock();token=c.candidates.start(True)
   c.candidates.ingest(token,'a','明日。');c.candidates.select('a')

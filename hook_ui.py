@@ -156,7 +156,12 @@ class HookWindow:
             self.app.translate_input(self.client.confirmed_text(identifier,text))
         except ReaderError as e:self.status.set(str(e))
     def stop(self):
-        self.app.pause();self.status.set(self.client.close());self.list.delete(0,'end');self.rows=[];self.show('');self.consent.set(False)
+        self.app.pause();self.consent.set(False)
+        try:message=self.client.close()
+        except ReaderError as error:
+            self.status.set(str(error));return False
+        self.status.set(message);self.list.delete(0,'end');self.rows=[];self.show('');return True
     def close(self):
         if self.closed:return
-        self.closed=True;self.stop();self.app.input_window=None;self.window.destroy()
+        if not self.stop():return False
+        self.closed=True;self.app.input_window=None;self.window.destroy();return True

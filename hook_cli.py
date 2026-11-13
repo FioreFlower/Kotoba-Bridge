@@ -92,7 +92,7 @@ class CliSession:
     CLI has no detach acknowledgement; close must never claim hook removal.
     """
     def __init__(self):
-        self.process=None;self.job=None;self.candidates=CandidateSession();self.events=queue.Queue(64)
+        self.process=None;self.job=None;self.reader=None;self.candidates=CandidateSession();self.events=queue.Queue(64)
         self.stopped=threading.Event();self.failure=None;self.target=None
     def connect(self,folder,target,identity,consent=False):
         if sys.platform!='win32':raise ReaderError('Windows 전용 실험 기능입니다.')
@@ -110,7 +110,7 @@ class CliSession:
             self.job=WindowsJob(self.process) # Own the CLI only; never put the game in this job.
             if identity(target.pid)!=target:raise ReaderError('연결 직전 게임 식별자가 바뀌었습니다.')
             self.process.stdin.write(command('attach',target.pid));self.process.stdin.flush()
-            threading.Thread(target=self._read,daemon=True).start()
+            self.reader=threading.Thread(target=self._read,daemon=True);self.reader.start()
         except Exception:
             self.close();raise ReaderError('후킹 CLI를 시작하지 못했습니다. 권한/보안 설정을 바꾸지 말고 OCR로 복귀하세요.') from None
     def _read(self):
@@ -148,22 +148,34 @@ class CliSession:
 
     def close(self):
         self.stopped.set();self.candidates.stop()
-        p=self.process
+        p=self.process;exited=p is None
         if p:
             try:
                 if p.poll() is None:
                     p.stdin.write(command('detach',self.target.pid));p.stdin.flush()
+                    # Upstream dispatches detach asynchronously. EOF must not immediately
+                    # kill its dispatch thread; this grace period is NOT an acknowledgement.
+                    try:p.wait(timeout=0.25)
+                    except subprocess.TimeoutExpired:pass
                 p.stdin.close()
-                p.wait(timeout=2)
+                p.wait(timeout=2);exited=True
             except (OSError,ValueError,subprocess.TimeoutExpired):
-                if p.poll() is None:p.terminate()
-                try:p.wait(timeout=2)
-                except subprocess.TimeoutExpired:pass
+                if self.job:self.job.close();self.job=None
+                try:
+                    if p.poll() is None:p.terminate()
+                    p.wait(timeout=2);exited=True
+                except (OSError,subprocess.TimeoutExpired):exited=False
             finally:
                 if self.job:self.job.close();self.job=None
-                if p.stdout:p.stdout.close()
-                if p.stdin and not p.stdin.closed:p.stdin.close()
-        self.process=None
+                if exited:
+                    if self.reader:self.reader.join(timeout=0.5)
+                    # Do not block Tk trying to close a stream locked by a live reader.
+                    if p.stdout and (not self.reader or not self.reader.is_alive()):p.stdout.close()
+                    if p.stdin and not p.stdin.closed:p.stdin.close()
         while not self.events.empty():self.events.get_nowait()
+        if not exited:
+            self.failure='소유 CLI 종료를 확인하지 못했습니다. 다시 연결하지 말고 상태를 확인하세요.'
+            raise ReaderError(self.failure)
+        self.process=None;self.reader=None
         if p is None:return '입력 중지 · 연결된 CLI 없음'
         return '입력 중지·해제 요청 완료. 엔진이 해제를 확인하지 않아 후크 제거 완료는 확인할 수 없습니다. 필요하면 게임을 저장 후 직접 종료하세요.'

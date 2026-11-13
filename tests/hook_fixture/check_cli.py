@@ -7,6 +7,7 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[2]))
 from hook_cli import CliSession,verify_cli
 from hook_processes import identity
 from hook_stream import HookStream
+from modules import names
 p=argparse.ArgumentParser();p.add_argument('--engine',required=True);p.add_argument('--fixture',required=True);p.add_argument('--report',required=True);a=p.parse_args()
 exe=verify_cli(Path(a.engine).resolve(),'x64')
 # First smoke: empty stdin, so no attach/detach/hook commands can be issued.
@@ -32,8 +33,36 @@ try:
   time.sleep(.1)
 finally:
  report['mock_continuous_outputs']=len(outputs);report['distinct_mock_sources']=len(set(outputs))
+ try:report['module_loaded_before_stop']='texthook.dll' in names(fixture.pid) if fixture.poll() is None else None
+ except OSError:report['module_loaded_before_stop']=None
  report['stop_status']=client.close()
+ report['fixture_alive_after_stop']=fixture.poll() is None
+ report['module_absent_after_stop']=None
+ if report['fixture_alive_after_stop']:
+  until=time.monotonic()+3
+  while time.monotonic()<until:
+   try:report['module_absent_after_stop']='texthook.dll' not in names(fixture.pid)
+   except OSError:break
+   if report['module_absent_after_stop']:break
+   time.sleep(.1)
+ report['owned_cli_exited']=client.process is None
  if fixture.poll() is None:fixture.terminate()
  fixture.wait(timeout=5)
  Path(a.report).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+assert report['fixture_alive_after_stop'] and report['owned_cli_exited'], 'Stop must preserve the fixture process and end the owned CLI'
 assert report['candidate_received'],'Synthetic GDI fixture text was not observed; actual hook success is unverified.'
+
+# A second owned fixture tests process-exit handling, never an existing/user PID.
+fixture2=subprocess.Popen([str(Path(a.fixture).resolve())]);second=CliSession()
+try:
+ time.sleep(.5);second.connect(exe.parent,identity(fixture2.pid),identity,consent=True)
+ fixture2.terminate();fixture2.wait(timeout=5)
+ from core import ReaderError
+ try:second.drain()
+ except ReaderError:report['target_exit_detected']=True
+ else:raise AssertionError('Target exit was not detected')
+finally:
+ report['target_exit_cleanup']=second.close()
+ if fixture2.poll() is None:fixture2.terminate();fixture2.wait(timeout=5)
+ Path(a.report).write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding='utf-8')
+print(json.dumps(report,ensure_ascii=True))

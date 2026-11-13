@@ -22,6 +22,9 @@ jobs:
           Invoke-WebRequest 'https://github.com/Artikash/Textractor/releases/download/v5.2.0/Textractor-5.2.0-Zip-Version-English-Only.zip' -OutFile engine.zip
           if ((Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower() -ne '3efdcf390261fcfb6a44220113c68b06eba22a3ef441ac618208238b52ee7974') { throw 'Archive hash mismatch' }
           Expand-Archive engine.zip -DestinationPath engine
+      - name: Inspect signatures without trust or security changes
+        shell: pwsh
+        run: ./tests/hook_fixture/audit_engine.ps1 -EngineRoot engine/Textractor -Report hook-engine-audit.json
       - name: Build synthetic unprotected fixture
         shell: pwsh
         run: |
@@ -37,5 +40,7 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: hook-fixture-evidence
-          path: hook-fixture-report.json
+          path: |
+            hook-fixture-report.json
+            hook-engine-audit.json
           if-no-files-found: warn

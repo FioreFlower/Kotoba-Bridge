@@ -803,7 +803,7 @@ class App:
 
     def close(self):
         self.pause()
-        if self.input_window:self.input_window.close()
+        if self.input_window and self.input_window.close() is False:return
         for editor in [getattr(self,'region_editor',None),getattr(self,'placement_editor',None)]:
             try:
                 if editor:editor.cancel()
