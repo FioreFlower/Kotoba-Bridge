@@ -1,6 +1,6 @@
 # Builds an unsigned app installer candidate. No paid API calls or automatic releases.
 param(
-    [string]$TesseractRoot = '',
+    [string]$TesseractRoot = '.ocr-bundle',
     [string]$PythonExe = 'python',
     [switch]$SkipInstaller
 )
@@ -12,6 +12,7 @@ if ($env:OS -ne 'Windows_NT') { throw 'Run this build on Windows x64.' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use a 64-bit PowerShell and Python installation.' }
 & $PythonExe -c "import struct,sys; assert struct.calcsize('P')==8; assert sys.version_info[:2]==(3,11)"
 if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 x64 is required.' }
+if (-not $TesseractRoot) { throw 'An audited OCR source bundle is required.' }
 if ($TesseractRoot) {
     $TesseractRoot = (Resolve-Path $TesseractRoot).Path
     foreach ($required in @('tesseract.exe','tessdata\jpn.traineddata','REDISTRIBUTION_REVIEW.md')) {
@@ -56,8 +57,8 @@ if ($TesseractRoot) {
 }
 # --windowed has no usable stdout; the process exit code and explicit report are checked.
 $report = Join-Path $projectRoot 'dist\package-self-test.json'
-$smoke = Start-Process -FilePath (Join-Path $bundle 'KotobaBridge.exe') -ArgumentList @('--self-test','--report',('"' + $report + '"')) -PassThru
-if (-not $smoke.WaitForExit(30000)) { $smoke.Kill(); throw 'Frozen app self-test timed out.' }
+$smoke = Start-Process -FilePath (Join-Path $bundle 'KotobaBridge.exe') -ArgumentList @('--self-test','--require-ocr','--report',('"' + $report + '"')) -PassThru
+if (-not $smoke.WaitForExit(60000)) { $smoke.Kill(); throw 'Frozen app self-test timed out.' }
 $smoke.Refresh()
 if ($smoke.ExitCode -ne 0 -or -not (Test-Path $report)) { throw 'Frozen app self-test failed.' }
 $smokeResult = Get-Content -Raw -Encoding UTF8 $report | ConvertFrom-Json
@@ -68,9 +69,23 @@ if (-not $SkipInstaller) {
     if (-not (Test-Path $iscc)) { throw 'Install Inno Setup 6 from its official site; no automatic download or policy bypass is performed.' }
     & $iscc packaging\installer.iss
     if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
-    Get-FileHash dist\KotobaBridge-Setup-x64.exe -Algorithm SHA256 | ForEach-Object {
-        "$($_.Hash.ToLower())  KotobaBridge-Setup-x64.exe"
-    } | Set-Content dist\SHA256SUMS.txt -Encoding ascii
 }
-Write-Host 'Built unsigned development candidate. OCR is separate unless explicitly audited and bundled.'
+# Separate portable tree: the installer must never inherit portable.flag or user data.
+$portable = Join-Path $projectRoot 'dist\KotobaBridge-Portable'
+if (Test-Path $portable) { throw 'Portable output already exists; use a clean build.' }
+Copy-Item $bundle $portable -Recurse
+New-Item -ItemType File (Join-Path $portable 'portable.flag') | Out-Null
+$portableReport = Join-Path $projectRoot 'dist\portable-self-test.json'
+$portableSmoke = Start-Process -FilePath (Join-Path $portable 'KotobaBridge.exe') -ArgumentList @('--self-test','--require-ocr','--report',('"'+$portableReport+'"')) -PassThru
+if (-not $portableSmoke.WaitForExit(60000)) { $portableSmoke.Kill(); throw 'Portable OCR smoke timed out.' }
+$portableSmoke.Refresh()
+if ($portableSmoke.ExitCode -ne 0 -or -not (Test-Path $portableReport)) { throw 'Portable OCR smoke failed.' }
+if (-not (Get-Content -Raw -Encoding UTF8 $portableReport | ConvertFrom-Json).ok) { throw 'Portable self-test reported failure.' }
+Compress-Archive -Path $portable -DestinationPath 'dist\KotobaBridge-Portable-x64.zip' -CompressionLevel Optimal
+$outputs = @('dist\KotobaBridge-Portable-x64.zip')
+if (-not $SkipInstaller) { $outputs += 'dist\KotobaBridge-Setup-x64.exe' }
+Get-ChildItem $outputs -ErrorAction Stop | ForEach-Object {
+    "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLower())  $($_.Name)"
+} | Set-Content dist\SHA256SUMS.txt -Encoding ascii
+Write-Host 'Built unsigned installer and portable candidate with source-built OCR and Japanese model.'
 Write-Host 'Installer/IPC smoke checks do not verify a real game, OCR quality, overlay, or low-spec performance.'

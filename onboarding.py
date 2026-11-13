@@ -14,7 +14,7 @@ def application_folder():
 
 
 def find_tesseract(preferred=''):
-    candidates=[preferred, os.environ.get('TESSERACT_CMD',''), str(application_folder()/'ocr'/'tesseract.exe')]
+    candidates=[preferred, str(application_folder()/'ocr'/'tesseract.exe'), os.environ.get('TESSERACT_CMD','')]
     for key in ['ProgramFiles','ProgramFiles(x86)']:
         if os.environ.get(key):candidates.append(str(Path(os.environ[key])/'Tesseract-OCR'/'tesseract.exe'))
     candidates.append(shutil.which('tesseract') or '')
@@ -53,9 +53,15 @@ def region_from_drag(start,end,preview_size,monitor):
     return Region(monitor['left']+left,monitor['top']+top,right-left,bottom-top)
 
 
-def settings_path():
+def data_folder():
+    folder=application_folder()
+    if (folder/'portable.flag').is_file():return folder/'data'
     base=Path(os.environ.get('LOCALAPPDATA') or (Path.home()/'.config'))
-    return base/'KotobaBridge'/'settings.json'
+    return base/'KotobaBridge'
+
+
+def settings_path():
+    return data_folder()/'settings.json'
 
 
 def save_settings(path,region,engine):

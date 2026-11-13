@@ -206,7 +206,7 @@ class App:
         win.title('초기 설정 · 로컬 점검');win.geometry('680x440')
         body=ttk.Frame(win,padding=16);body.pack(fill='both',expand=True)
         ttk.Label(body,text='1. Tesseract 일본어 OCR 설치',font=('',14,'bold')).pack(anchor='w')
-        ttk.Label(body,text='앱 설치본에는 OCR 엔진/일본어 모델이 기본 포함되지 않습니다.\n공식 안내의 Windows 배포처에서 설치하며 jpn 언어팩을 선택하세요.',wraplength=620).pack(anchor='w',pady=8)
+        ttk.Label(body,text='OCR 포함 배포본은 엔진·일본어 모델을 함께 제공합니다. 먼저 환경 점검을 누르세요.\n개발 소스 실행 또는 손상된 배포본은 단계별 도움말을 확인하세요.',wraplength=620).pack(anchor='w',pady=8)
         def instructions():
             import webbrowser
             webbrowser.open('https://tesseract-ocr.github.io/tessdoc/Installation.html')
@@ -232,7 +232,7 @@ class App:
         ttk.Button(row,text='영역·엔진 설정 저장',command=self.persist_settings).pack(side='left')
         ttk.Button(row,text='저장 설정 삭제',command=self.delete_settings).pack(side='left',padx=6)
         ttk.Button(row,text='닫기',command=win.destroy).pack(side='right')
-        ttk.Label(body,text='저장: 영역 좌표와 엔진 경로만. API 키·동의·대사·학습 데이터는 포함하지 않습니다.',wraplength=620).pack(anchor='w')
+        ttk.Label(body,text='저장: 영역 좌표와 엔진 경로만. API 키·동의·대사 제외.\n설정 위치: '+str(settings_path()),wraplength=620).pack(anchor='w')
 
     def ocr_help(self):
         from ocr_install import format_install_guide,get_install_guide
@@ -493,11 +493,11 @@ class App:
 if __name__ == '__main__':
     import argparse
     parser=argparse.ArgumentParser()
-    parser.add_argument('--self-test',action='store_true');parser.add_argument('--report')
+    parser.add_argument('--self-test',action='store_true');parser.add_argument('--report');parser.add_argument('--require-ocr',action='store_true')
     args=parser.parse_args()
     if args.self_test:
         from selftest import run
-        raise SystemExit(run(args.report))
+        raise SystemExit(run(args.report,require_ocr=args.require_ocr))
     if sys.platform == 'win32':
         try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception: pass

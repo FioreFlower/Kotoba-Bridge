@@ -20,7 +20,7 @@ concurrency:
 jobs:
   package:
     runs-on: windows-2025
-    timeout-minutes: 25
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
@@ -33,6 +33,9 @@ jobs:
         with:
           python-version: '3.11'
           architecture: x64
+      - name: Build pinned OCR sources and verify Japanese model hash
+        shell: pwsh
+        run: ./packaging/build_ocr.ps1
       - name: Build and check frozen app, then compile installer
         shell: pwsh
         run: ./packaging/build_windows.ps1
@@ -45,8 +48,8 @@ jobs:
           @"
           Commit: ${{ github.sha }}
           Runner: Windows Server 2025 x64
-          Package: unsigned development candidate, no OCR engine bundled
-          Tests: Go/Python tests, frozen/installed offline self-test, install/uninstall smoke
+          Package: unsigned development candidate, source-built OCR and Japanese model bundled
+          Tests: Go/Python tests, frozen/installed/portable offline OCR self-test, install/uninstall smoke
           Not tested: Windows 10/11 game UI, OCR quality, overlay, low-spec performance
           "@ | Set-Content dist/BUILD-INFO.txt -Encoding utf8
       - name: Upload candidate and evidence (not a release)
@@ -55,10 +58,12 @@ jobs:
           name: KotobaBridge-Windows-x64-candidate
           path: |
             dist/KotobaBridge-Setup-x64.exe
+            dist/KotobaBridge-Portable-x64.zip
             dist/SHA256SUMS.txt
             dist/BUILD-INFO.txt
             dist/package-self-test.json
             dist/installed-self-test.json
+            dist/portable-self-test.json
           if-no-files-found: error
           retention-days: 14
           compression-level: 0

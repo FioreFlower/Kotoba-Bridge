@@ -187,7 +187,12 @@ class StudyWindow:
             self.status.set('메모리에서 카드를 삭제했습니다. 이전 내보내기 파일은 별도로 삭제하거나 다시 내보내세요.')
 
     def export(self):
-        path = filedialog.asksaveasfilename(parent=self.window, defaultextension='.json', filetypes=[('JSON', '*.json')])
+        from onboarding import data_folder
+        folder=data_folder()/'cards'
+        try:folder.mkdir(parents=True,exist_ok=True)
+        except OSError:
+            self.status.set('복습 폴더를 만들 수 없습니다. 쓰기 가능한 위치에 압축을 풀어 주세요.');return
+        path = filedialog.asksaveasfilename(parent=self.window, initialdir=str(folder), initialfile='study-cards.json', defaultextension='.json', filetypes=[('JSON', '*.json')])
         if path:
             try:
                 self.store.export(path)
@@ -198,7 +203,8 @@ class StudyWindow:
                 self.status.set('저장 실패: 파일 권한과 경로를 확인하세요. 기존 파일은 교체 성공 전까지 보존됩니다.')
 
     def load(self):
-        path = filedialog.askopenfilename(parent=self.window, filetypes=[('JSON', '*.json')])
+        from onboarding import data_folder
+        path = filedialog.askopenfilename(parent=self.window, initialdir=str(data_folder()/'cards'), filetypes=[('JSON', '*.json')])
         if path and messagebox.askyesno('불러오기', '현재 메모리의 복습 카드를 파일 내용으로 바꿀까요?', parent=self.window):
             try:
                 self.store.load(path); self.review.set(True); self.refresh()

@@ -15,3 +15,8 @@ study-cards*.json
 
 *.json
 !**/test*.json
+
+# Reproducible OCR build inputs, never generated vendor binaries
+.ocr-build/
+.ocr-bundle/
+!packaging/ocr-source/vcpkg.json

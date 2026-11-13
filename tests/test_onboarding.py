@@ -46,3 +46,14 @@ class SetupTests(unittest.TestCase):
             self.assertEqual(ocr_region(Region(0,0,100,100),b),'こんにちは。')
         self.assertEqual([c[0] for c in b.calls],['ocr'])
         self.assertEqual(b.calls[0][1]['scope'],'0,0,100,100')
+
+    def test_portable_data_stays_beside_app(self):
+        from onboarding import settings_path,data_folder
+        with tempfile.TemporaryDirectory() as d,patch('onboarding.application_folder',return_value=Path(d)):
+            (Path(d)/'portable.flag').write_text('portable',encoding='utf-8')
+            self.assertEqual(settings_path(),Path(d)/'data'/'settings.json')
+            self.assertFalse(data_folder().exists())
+    def test_installed_data_uses_localappdata(self):
+        from onboarding import settings_path
+        with tempfile.TemporaryDirectory() as d,patch('onboarding.application_folder',return_value=Path(d)),patch.dict('os.environ',{'LOCALAPPDATA':d}):
+            self.assertEqual(settings_path(),Path(d)/'KotobaBridge'/'settings.json')
