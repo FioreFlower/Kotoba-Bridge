@@ -16,6 +16,16 @@ def run(report=None,require_ocr=False):
         result=bridge.call('translate',text='こんにちは。')
         if result.get('text')!='안녕하세요.':raise ValueError('Demo mismatch')
         checks['demo']='ok'
+        import sys,tempfile
+        if sys.platform=='win32':
+            from credentials import KeyStore
+            with tempfile.TemporaryDirectory() as temporary:
+                store=KeyStore(Path(temporary)/'synthetic.dpapi')
+                store.save('synthetic-packaging-fixture-only',False)
+                if store.load()!=('synthetic-packaging-fixture-only',False):raise ValueError('DPAPI mismatch')
+                store.delete()
+                if store.load() is not None:raise ValueError('DPAPI delete failed')
+            checks['dpapi_synthetic_roundtrip']='passed'
         if require_ocr:
             from onboarding import application_folder,inspect_engine
             from ocr_fixture import PNG_BASE64,EXPECTED
@@ -34,7 +44,7 @@ def run(report=None,require_ocr=False):
         checks['status']='passed';checks['ok']=True
         code=0
     except Exception:
-        checks['status']='failed';checks['ok']=False;checks['error']='Runtime imports, core demo or required bundled OCR failed.';code=1
+        checks['status']='failed';checks['ok']=False;checks['error']='Runtime imports, core demo, DPAPI or required bundled OCR failed.';code=1
     finally:
         if bridge:bridge.close()
     if report:

@@ -57,11 +57,16 @@ class Subtitle:
     def __init__(self, root):
         self.source = self.translation = ''
         self.clickthrough_ok = False
+        self.background=None
+        self.separate_background=False
+        self.background_opacity=85
+        self.learning=False
+        self.sync_pending=False
         self.window = tk.Toplevel(root)
         self.window.title('Kotoba Bridge 자막')
         self.window.geometry('650x210+750+40')
         self.window.attributes('-topmost', True)
-        self.window.attributes('-alpha', 0.93)
+        self.window.attributes('-alpha', 1.0)
         self.text = tk.Text(self.window, height=3, wrap='word', font=('', 16), bg='#17212d', fg='#dbe6f3', padx=12, pady=8, exportselection=False)
         self.text.pack(fill='both', expand=True)
         self.translation_text = tk.Text(self.window, height=3, wrap='word', font=('', 18), bg='#17212d', fg='#ffffff', padx=12, pady=8, exportselection=False)
@@ -69,10 +74,64 @@ class Subtitle:
         self.text.configure(state='disabled')
         self.translation_text.configure(state='disabled')
         self.window.protocol('WM_DELETE_WINDOW', self.window.withdraw)
+        if sys.platform=='win32':
+            try:
+                # Text remains fully opaque. Only matching background-color pixels
+                # are holes; a separate noninteractive window supplies the tint.
+                self.window.attributes('-transparentcolor','#17212d')
+                self.background=tk.Toplevel(root,bg='#17212d')
+                self.background.withdraw();self.background.overrideredirect(True)
+                self.background.attributes('-topmost',True)
+                self.background.attributes('-alpha',0.85)
+                self.separate_background=True
+                for widget in (self.text,self.translation_text):
+                    widget.configure(borderwidth=0,highlightthickness=0)
+                self.window.bind('<Configure>',self._queue_sync,add='+')
+                self.window.bind('<Map>',self._queue_sync,add='+')
+                self.window.bind('<Unmap>',lambda event:self.background.withdraw() if event.widget==self.window else None,add='+')
+            except tk.TclError:
+                # Never fake background-only transparency with whole-window alpha.
+                self.window.attributes('-transparentcolor','')
+                if self.background:self.background.destroy();self.background=None
+                self.separate_background=False
         self.window.after(100, self._initial_play_mode)
 
     def _initial_play_mode(self):
-        self.clickthrough_ok = click_through(self.window, True)
+        self.clickthrough_ok=click_through(self.window,True)
+        self._queue_sync()
+
+    def _queue_sync(self,event=None):
+        if event is not None and event.widget!=self.window:return
+        if self.separate_background and not self.sync_pending:
+            self.sync_pending=True;self.window.after_idle(self._sync_background)
+
+    def _sync_background(self):
+        self.sync_pending=False
+        if not self.separate_background:return
+        if not self.window.winfo_ismapped():self.background.withdraw();return
+        w=self.window
+        self.background.geometry(f'{w.winfo_width()}x{w.winfo_height()}{w.winfo_rootx():+d}{w.winfo_rooty():+d}')
+        self.background.deiconify()
+        self.background.lower(self.window)
+        if not click_through(self.background,True):
+            # A decorative pane must never intercept the game or learning input.
+            self.background.withdraw()
+
+    def set_background_opacity(self,value):
+        from overlay_settings import opacity
+        self.background_opacity=opacity(value)
+        self.window.attributes('-alpha',1.0)
+        if self.separate_background:
+            self.background.attributes('-alpha',self.background_opacity/100)
+            self._queue_sync()
+        return self.separate_background
+
+    def restore(self):
+        # Recover off-screen/hidden panes without making invisible text.
+        self.window.geometry('650x210+40+80')
+        self.window.deiconify();self.window.lift()
+        self.set_background_opacity(85)
+        self.mode(self.learning)
 
     def show(self, text):
         self.source, separator, self.translation = text.partition('\n\n')
@@ -86,7 +145,10 @@ class Subtitle:
         return source_selection(self.text)
 
     def mode(self, learning):
+        self.learning=learning
         self.window.deiconify()
+        if self.background:click_through(self.background,True)
+        self._queue_sync()
         result = click_through(self.window, not learning)
         self.clickthrough_ok = result and not learning
         return result

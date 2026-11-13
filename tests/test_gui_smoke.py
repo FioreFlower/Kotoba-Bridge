@@ -13,12 +13,13 @@ class WidgetSmokeTests(unittest.TestCase):
         self.folder=tempfile.TemporaryDirectory()
         self.setting_patch=patch('app.settings_path',return_value=Path(self.folder.name)/'settings.json')
         self.setting_patch.start()
+        self.data_patch=patch('onboarding.data_folder',return_value=Path(self.folder.name));self.data_patch.start()
         from app import App
         self.root=tk.Tk();self.root.withdraw();self.app=App(self.root)
         self.app.subtitle.window.withdraw()
         self.root.update_idletasks()
     def tearDown(self):
-        self.app.close();self.setting_patch.stop();self.folder.cleanup()
+        self.app.close();self.setting_patch.stop();self.data_patch.stop();self.folder.cleanup()
     def test_source_and_translation_separated(self):
         self.app.display('こんにちは。\n\n안녕하세요.')
         self.assertEqual(self.app.subtitle.text.get('1.0','end-1c'),'こんにちは。')
@@ -41,3 +42,23 @@ class WidgetSmokeTests(unittest.TestCase):
         window.close()
         self.assertIsNone(self.app.input_window)
         self.assertFalse(self.app.running)
+
+    def test_masked_key_not_refilled(self):
+        self.assertEqual(self.app.key.cget('show'),'•')
+        self.assertEqual(self.app.key.get(),'')
+
+    def test_background_opacity_keeps_text_opaque(self):
+        sub=self.app.subtitle
+        sub.window.deiconify();self.root.update_idletasks()
+        sub.set_background_opacity(20)
+        self.root.update_idletasks()
+        self.assertEqual(float(sub.window.attributes('-alpha')),1.0)
+        if sys.platform=='win32':
+            self.assertTrue(sub.separate_background)
+            self.assertAlmostEqual(float(sub.background.attributes('-alpha')),0.2,places=2)
+            self.assertTrue(sub.mode(True))
+            sub.show('明日\n\n내일');sub.text.tag_add('sel','1.0','1.2')
+            self.assertEqual(sub.selection_text(),'明日')
+            self.assertTrue(sub.mode(False))
+        sub.restore();self.assertEqual(sub.background_opacity,85)
+        self.assertEqual(float(sub.window.attributes('-alpha')),1.0)

@@ -20,3 +20,8 @@ study-cards*.json
 .ocr-build/
 .ocr-bundle/
 !packaging/ocr-source/vcpkg.json
+
+# Never commit encrypted credentials, portable user data, or temporary stores
+*.dpapi
+.credential-*
+data/

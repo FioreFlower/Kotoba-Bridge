@@ -319,7 +319,7 @@ func (c *Core) handle(r Request) (any, error) {
 	}
 	switch r.Method {
 	case "hello":
-		return map[string]any{"protocol": protocol, "name": "KotobaBridgeCore", "version": "0.2.0"}, nil
+		return map[string]any{"protocol": protocol, "name": "KotobaBridgeCore", "version": "0.3.0"}, nil
 	case "configure":
 		if r.Key != "" && !validKey(r.Key) {
 			return nil, errors.New("API 키 형식을 확인하세요. 공백·제어문자는 허용하지 않습니다.")

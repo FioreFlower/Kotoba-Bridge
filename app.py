@@ -16,6 +16,8 @@ from setup_ui import RegionPicker
 from study import StudyStore
 from study_ui import Subtitle, StudyWindow
 from core import Region, ReaderError, StableText, normalize
+from credentials import KeyStore, remove_legacy_keys, valid_key
+from overlay_settings import load_opacity, save_opacity
 
 
 def capture_region(region):
@@ -75,9 +77,12 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title('Kotoba Bridge · 일본어 → 한국어')
-        root.geometry('760x660+30+30')
-        root.minsize(700,570)
+        root.geometry('860x790+30+30')
+        root.minsize(800,650)
         root.attributes('-topmost', False)
+        self.key_store=KeyStore()
+        self.credentials_blocked=False
+        self.key_state=tk.StringVar(value="저장 키 없음 · 입력란에는 저장 키를 다시 표시하지 않습니다.")
         self.study=StudyStore()
         self.study_window=None
         self.input_window=None
@@ -118,6 +123,9 @@ class App:
         ttk.Label(keyrow, text='DeepL API 키').pack(side='left')
         self.key = ttk.Entry(keyrow, show='•', width=42); self.key.pack(side='left', padx=8)
         ttk.Checkbutton(keyrow, text='Pro', variable=self.pro).pack(side='left')
+        ttk.Button(keyrow,text='암호화 저장 / 교체',command=self.save_key).pack(side='left',padx=6)
+        ttk.Label(panel,textvariable=self.key_state,wraplength=800).pack(anchor='w')
+        ttk.Label(panel,text='Windows 사용자별 DPAPI · PC/계정 이동용 아님 · 같은 계정의 악성 코드는 보호 범위 밖',wraplength=800).pack(anchor='w')
         ttk.Checkbutton(panel, text='인식된 대사와 이전 최대 3개 대사를 DeepL에 전송하는 데 동의', variable=self.consent).pack(anchor='w')
         ttk.Label(panel, text='이미지는 업로드하지 않습니다. 알림·개인정보가 영역에 들어오면 함께 인식될 수 있습니다.', wraplength=650).pack(anchor='w', pady=4)
         row = ttk.Frame(panel); row.pack(fill='x', pady=8)
@@ -135,7 +143,31 @@ class App:
         root.bind('<Escape>', lambda _: self.pause())
         root.protocol('WM_DELETE_WINDOW', self.close)
         self.mode = None
+        overlay_row=ttk.Frame(panel);overlay_row.pack(fill='x',pady=4,before=self.output)
+        try:initial_opacity=load_opacity()
+        except ReaderError:initial_opacity=85
+        self.opacity_value=tk.DoubleVar(value=initial_opacity)
+        self.opacity_label=tk.StringVar()
+        ttk.Label(overlay_row,text='자막 배경 불투명도').pack(side='left')
+        slider=ttk.Scale(overlay_row,from_=0,to=100,variable=self.opacity_value,command=self.change_opacity)
+        slider.pack(side='left',padx=6)
+        if not self.subtitle.separate_background:slider.configure(state='disabled')
+        ttk.Label(overlay_row,textvariable=self.opacity_label).pack(side='left')
+        ttk.Button(overlay_row,text='배경 설정 저장',command=self.save_overlay).pack(side='left',padx=6)
+        ttk.Button(overlay_row,text='자막 표시 / 위치·배경 복구',command=self.restore_overlay).pack(side='left')
+        self.change_opacity(initial_opacity)
         self.consent.trace_add('write',lambda *_:self.pause() if not self.consent.get() and (self.running or self.busy) else None)
+        try:
+            self.credentials_blocked=remove_legacy_keys(settings_path())
+            if self.credentials_blocked:
+                self.key_state.set('기존 평문 키 필드를 제거했습니다. 해당 키를 폐기/재발급하고 새 키를 저장하세요.')
+            else:
+                saved_key=self.key_store.load()
+                if saved_key:
+                    self.pro.set(saved_key[1]);self.key_state.set('저장 키 준비됨 · 입력란은 비워 둡니다. 전송 동의는 다시 필요합니다.')
+                del saved_key
+        except ReaderError as exc:
+            self.credentials_blocked=True;self.key_state.set(str(exc))
         try:
             saved=load_settings(settings_path())
             if saved:
@@ -145,6 +177,20 @@ class App:
         except (ReaderError,OSError):
             self.status.set('저장된 설정을 읽지 못했습니다. 초기 설정에서 다시 저장하거나 삭제하세요.')
         root.after(100, self.poll)
+
+    def change_opacity(self,value):
+        supported=self.subtitle.set_background_opacity(value)
+        self.opacity_label.set(f'{round(float(value))}% · 글자 100%' if supported else 'Windows 전용 · 현재 불투명 배경')
+
+    def save_overlay(self):
+        try:
+            save_opacity(self.opacity_value.get())
+            self.status.set('자막 배경 설정 저장 완료 · 글자 불투명도는 항상 100%')
+        except (OSError,ReaderError,ValueError):self.status.set('자막 배경 설정 저장 실패. 폴더 권한을 확인하세요.')
+
+    def restore_overlay(self):
+        self.pause();self.subtitle.restore();self.opacity_value.set(85);self.change_opacity(85)
+        self.status.set('자막 위치/배경을 복구했습니다. 게임 밖에서 위치를 조정한 뒤 재개하세요.')
 
     def open_input(self):
         self.pause()
@@ -162,7 +208,7 @@ class App:
         if not self.consent.get():raise ReaderError('메인 화면의 외부 전송 동의가 필요합니다.')
         self.pause()
         if self.bridge is None:self.bridge=GoBridge()
-        self.bridge.call('configure',key=self.key.get(),pro=self.pro.get(),demo=False)
+        self.configure_credentials(False,self.pro.get())
         self.key.delete(0,'end');self.mode=(False,self.pro.get())
         self.translator=GoTranslator(self.bridge)
         self.manual_context=True
@@ -315,14 +361,62 @@ class App:
             finally:self.results.put((generation,'done',''))
         self.root.after(350,lambda:threading.Thread(target=work,daemon=True).start())
 
+    def save_key(self):
+        self.pause()
+        if self.busy:
+            self.status.set('진행 중 작업이 끝난 뒤 키를 저장하세요.');return
+        try:
+            remove_legacy_keys(settings_path())
+            self.key_store.save(self.key.get(),self.pro.get())
+            # Invalidate the provider only after the replacement was durably saved.
+            if self.bridge:
+                try:self.bridge.call('forget_key')
+                except ReaderError:
+                    self.bridge.close();self.bridge=None
+            self.translator=None;self.mode=None;self.key.delete(0,'end')
+            self.credentials_blocked=False
+            self.key_state.set('암호화 저장 완료 · 입력란을 비웠습니다. 재실행 시 같은 Windows 계정에서 사용합니다.')
+            self.status.set('저장만 완료 · API 호출 없음 · 기존 세션 사용량 유지')
+        except ReaderError as exc:
+            self.key_state.set(str(exc))
+
+    def configure_credentials(self,demo,pro):
+        if demo:
+            # Demo must never decrypt, send, or consume a typed key.
+            self.bridge.call('configure',key='',pro=pro,demo=True);return
+        if getattr(self,'credentials_blocked',False):
+            raise ReaderError('저장 키/기존 설정 확인이 필요합니다. 새 키를 암호화 저장하거나 API 키 지우기를 누르세요.')
+        key=self.key.get().strip()
+        if key:key=valid_key(key)
+        else:
+            saved=self.key_store.load()
+            if saved:
+                key,saved_pro=saved
+                if saved_pro!=pro:
+                    raise ReaderError('저장된 키의 Free/Pro 종류와 다릅니다. 맞는 종류로 되돌리거나 키를 교체 저장하세요.')
+        self.bridge.call('configure',key=key,pro=pro,demo=False)
+        self.key.delete(0,'end')
+
     def forget_key(self):
         self.pause()
-        if self.busy:self.status.set('진행 중 작업이 끝난 뒤 키 지우기를 다시 눌러 주세요.');return
+        if self.busy:
+            self.status.set('진행 중 작업이 끝난 뒤 키를 삭제하세요.');return
+        self.key.delete(0,'end');self.consent.set(False)
+        self.translator=None;self.mode=None
+        memory_failed=False
         try:
             if self.bridge:self.bridge.call('forget_key')
-            self.translator=None;self.mode=None;self.key.delete(0,'end');self.consent.set(False)
-            self.display('');self.status.set('API 키와 번역 문맥을 삭제했습니다. 세션 사용량은 유지됩니다.')
-        except ReaderError:self.status.set('코어 연결이 끊겼습니다. 앱을 종료하면 키 메모리가 해제됩니다.')
+        except ReaderError:
+            self.bridge.close();self.bridge=None;memory_failed=True
+        try:
+            self.key_store.delete()
+            remove_legacy_keys(settings_path())
+            self.credentials_blocked=False
+            self.key_state.set('저장 키 삭제됨 · 이전 복사본/백업은 별도로 삭제하세요.')
+            self.display('')
+            self.status.set('키 삭제 완료 · 세션 사용량 유지' if not memory_failed else '키 삭제 완료 · 오류가 난 코어를 종료했습니다. 앱을 재실행하세요.')
+        except ReaderError as exc:
+            self.credentials_blocked=True;self.key_state.set(str(exc))
 
     def learn(self):
         self.pause()
@@ -377,10 +471,10 @@ class App:
             if self.translator is None or self.mode != mode or (not mode[0] and self.key.get().strip()):
                 if self.bridge is None:
                     self.bridge = GoBridge()
-                self.bridge.call('configure', key=self.key.get(), pro=mode[1], demo=mode[0])
+                self.configure_credentials(mode[0],mode[1])
                 self.translator = GoTranslator(self.bridge)
                 self.mode = mode
-                self.key.delete(0, 'end')
+                if not mode[0]:self.key.delete(0, 'end')
             self.reset_manual_context()
             self.region = region
             self.stable = GoStable(self.bridge)
