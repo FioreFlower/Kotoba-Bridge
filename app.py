@@ -104,6 +104,8 @@ class App:
         self.provider=tk.StringVar(value='DeepL')
         self.local_port=tk.StringVar(value='8087');self.local_model=tk.StringVar(value='kotoba-local')
         self.local_consent=tk.BooleanVar(value=False);self.local_window=None
+        from managed_engine import ManagedEngine
+        self.managed_engine=ManagedEngine();self.use_managed=False
         self.demo = tk.BooleanVar(value=True)
         self.pro = tk.BooleanVar(value=False)
         self.consent = tk.BooleanVar(value=False)
@@ -412,9 +414,12 @@ class App:
             self.bridge.call('configure',key='',pro=pro,demo=True);return
         if self.is_local():
             if not self.local_consent.get():raise ReaderError('로컬 서버 전송 동의가 필요합니다.')
-            try:port=int(self.local_port.get())
-            except ValueError:raise ReaderError('로컬 포트는 숫자여야 합니다.') from None
-            self.bridge.call('configure',provider='local',local_port=port,local_model=self.local_model.get(),key='',demo=False)
+            if getattr(self,'use_managed',False):options=self.managed_engine.configuration()
+            else:
+                try:port=int(self.local_port.get())
+                except ValueError:raise ReaderError('로컬 포트는 숫자여야 합니다.') from None
+                options=dict(local_port=port,local_model=self.local_model.get(),local_token='')
+            self.bridge.call('configure',provider='local',key='',demo=False,**options)
             return
         if getattr(self,'credentials_blocked',False):
             raise ReaderError('저장 키/기존 설정 확인이 필요합니다. 새 키를 암호화 저장하거나 API 키 지우기를 누르세요.')
@@ -614,6 +619,10 @@ class App:
     def close(self):
         self.pause()
         if getattr(self,'local_window',None):self.local_window.close()
+        try:
+            if getattr(self,'managed_engine',None):self.managed_engine.stop()
+        except ReaderError as exc:
+            self.status.set(str(exc));return
         if self.bridge: self.bridge.close()
         self.root.destroy()
 

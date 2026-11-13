@@ -42,6 +42,7 @@ type Request struct {
 	Provider   string          `json:"provider"`
 	LocalPort  int             `json:"local_port"`
 	LocalModel string          `json:"local_model"`
+	LocalToken string          `json:"local_token"`
 }
 type Response struct {
 	ID      json.RawMessage `json:"id,omitempty"`
@@ -55,6 +56,7 @@ type Core struct {
 	provider          string
 	localPort         int
 	localModel        string
+	localToken        string
 	localHTTP         *http.Client
 	pro, demo         bool
 	configured        bool
@@ -340,13 +342,14 @@ func (c *Core) handle(r Request) (any, error) {
 			return nil, errors.New("지원하지 않는 번역 제공자")
 		}
 		if !r.Demo && provider == "local" {
-			if r.Key != "" || !validLocal(r.LocalPort, r.LocalModel) {
+			if r.Key != "" || !validLocal(r.LocalPort, r.LocalModel) || !validLocalToken(r.LocalToken) {
 				return nil, errors.New("로컬 설정 오류: 포트 1024~65535와 모델 별칭을 확인하세요. API 키는 보내지 마세요.")
 			}
 			c.key = ""
 			c.provider = "local"
 			c.localPort = r.LocalPort
 			c.localModel = r.LocalModel
+			c.localToken = r.LocalToken
 			c.demo = false
 			c.configured = true
 			c.clear()
@@ -361,6 +364,7 @@ func (c *Core) handle(r Request) (any, error) {
 		if r.Key != "" {
 			c.key = strings.TrimSpace(r.Key)
 		}
+		c.localToken = ""
 		c.provider = provider
 		c.pro = r.Pro
 		c.demo = r.Demo

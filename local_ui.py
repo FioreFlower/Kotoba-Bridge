@@ -18,7 +18,7 @@ class LocalWindow:
         f.bind('<Configure>',lambda _:canvas.configure(scrollregion=canvas.bbox('all')))
         canvas.bind('<Configure>',lambda event:canvas.itemconfigure(content,width=event.width))
         ttk.Label(f,text='로컬 번역 · 외부 API 자동 전환 없음',font=('',16,'bold')).pack(anchor='w')
-        ttk.Label(f,text='공식 Windows CPU 엔진을 아래 버튼으로 설치할 수 있습니다. 자동 서버 실행은 아직 제공하지 않습니다.\n서버를 직접 설치·관리할 수 있는 시험 사용자용입니다.',wraplength=700).pack(anchor='w',pady=8)
+        ttk.Label(f,text='모델과 엔진 설치 후 선택 모델 실행을 누르세요. 앱이 시작한 엔진만 관리합니다.\n외부 서버는 별도 연결 버튼으로 선택하며 자동 전환하지 않습니다.',wraplength=700).pack(anchor='w',pady=8)
         row=ttk.Frame(f);row.pack(fill='x')
         ttk.Label(row,text='127.0.0.1 포트').pack(side='left');ttk.Entry(row,textvariable=app.local_port,width=8).pack(side='left',padx=6)
         ttk.Label(row,text='모델 별칭').pack(side='left');ttk.Entry(row,textvariable=app.local_model,width=30).pack(side='left',padx=6)
@@ -34,6 +34,9 @@ class LocalWindow:
         if not getattr(app,'manage_models_only',False):
             ttk.Button(f,text='고정 모델 다운로드 / 무결성 확인',command=self.download).pack(anchor='w',pady=6)
             ttk.Button(f,text='Windows CPU 엔진 설치 / 무결성 확인 (25.1 MB)',command=self.prepare_runtime).pack(anchor='w',pady=6)
+            ttk.Button(f,text='선택 모델 실행 / 모델 전환',command=self.start_engine).pack(anchor='w',pady=4)
+            ttk.Button(f,text='앱 관리 엔진 중지',command=self.stop_engine).pack(anchor='w',pady=4)
+            ttk.Button(f,text='기존 외부 서버 연결로 전환',command=lambda:self.stop_engine(external=True)).pack(anchor='w',pady=4)
         else:
             ttk.Label(f,text='제거 준비: 선택 모델만 즉시 삭제합니다. 프로그램 제거를 나중에 취소해도 모델 삭제는 되돌리지 않습니다.\nAPI 키·설정·복습 카드: 보존. 이 창을 닫으면 프로그램 제거를 계속합니다.',wraplength=700).pack(anchor='w',pady=6)
         self.status=tk.StringVar(value='자동 다운로드 없음 · 설치 후에는 모델 다운로드용 인터넷 연결이 필요 없습니다.')
@@ -43,13 +46,15 @@ class LocalWindow:
         w.protocol('WM_DELETE_WINDOW',self.close);w.after(200,self.poll)
     def describe(self):
         item=spec(self.model_id.get());p=model_path(self.model_id.get())
-        self.details.set(f"{item['name']} · {item['bytes']:,} bytes · {'파일 있음 (해시 미확인)' if p.is_file() else '미설치'}\n{item['memory']}\n{item['measured']}\n사용 상태: 외부 서버의 실제 로드 모델은 앱에서 확인할 수 없음 · 로컬 제공자 선택 여부: {self.app.is_local()}\nCPU 사용 가능, GPU 필수 아님 · 모두 Apache-2.0\n라이선스: {item['repo']}/blob/{item['revision']}/LICENSE")
+        owned=self.app.managed_engine
+        state=('앱 관리 '+str(owned.model_id)+' · '+('실행 중' if owned.active() else '준비/종료 중')) if owned.model_id else '앱 관리 엔진 없음'
+        self.details.set(f"{item['name']} · {item['bytes']:,} bytes · {'파일 있음 (해시 미확인)' if p.is_file() else '미설치'}\n{item['memory']}\n{item['measured']}\n사용 상태: {state} · 외부 서버의 실제 모델은 확인 불가\nCPU 사용 가능, GPU 필수 아님 · 모두 Apache-2.0\n라이선스: {item['repo']}/blob/{item['revision']}/LICENSE")
         if hasattr(self,'accept'):self.accept.set(False)
     def remove(self):
         if self.busy:return
         if not messagebox.askyesno('모델만 삭제','외부 로컬 서버를 먼저 종료하세요. 선택 모델 파일만 삭제하고 키·설정·복습 카드는 유지합니다. 계속할까요?',parent=self.window):return
         try:
-            delete_model(self.model_id.get(),in_use=self.app.is_local() or self.app.busy or self.app.running or local_server_present(self.app.local_port.get()))
+            delete_model(self.model_id.get(),in_use=self.app.managed_engine.uses(self.model_id.get()) or self.app.is_local() or self.app.busy or self.app.running or local_server_present(self.app.local_port.get()))
             self.status.set('모델 파일 삭제 완료 · 다시 다운로드할 수 있습니다.');self.describe()
         except ReaderError as e:self.status.set(str(e))
     def download(self):
@@ -60,7 +65,7 @@ class LocalWindow:
         def work():
             try:
                 p=install_model(accepted=True,model_id=selected,cancel=self.cancel,progress=lambda n,total:self.events.put(f'다운로드 {n*100//total}%'))
-                self.events.put('검증 완료: '+str(p)+' · 서버에서 이 모델을 직접 로드하세요.')
+                self.events.put('검증 완료: '+str(p)+' · 선택 모델 실행 버튼으로 시작하세요.')
             except ReaderError as e:self.events.put(str(e))
             finally:self.events.put(None)
         threading.Thread(target=work,daemon=True).start()
@@ -71,7 +76,33 @@ class LocalWindow:
         def work():
             try:
                 path=install_runtime(accepted=True,cancel=self.cancel,progress=lambda n,total:self.events.put(f'엔진 다운로드 {n*100//total}%'))
-                self.events.put('엔진 준비 완료: '+str(path)+' · 서버 자동 실행은 아직 미구현입니다.')
+                self.events.put('엔진 준비 완료: '+str(path)+' · 선택 모델 실행 버튼으로 시작하세요.')
+            except ReaderError as e:self.events.put(str(e))
+            finally:self.events.put(None)
+        threading.Thread(target=work,daemon=True).start()
+    def start_engine(self):
+        if self.busy:return
+        if not self.app.local_consent.get():
+            messagebox.showerror('확인 필요','로컬 서버 전송 동의 후 실행하세요.',parent=self.window);return
+        self.app.pause();self.app.mode=None;self.app.translator=None
+        self.app.use_managed=True;self.app.provider.set('로컬 llama.cpp')
+        self.cancel.clear();selected=self.model_id.get();self.busy=True;self.status.set('기존 앱 엔진 종료 → 해시 검증 → 모델 로딩 중 (최대 120초)')
+        def work():
+            try:
+                self.app.managed_engine.start(selected,cancelled=self.cancel)
+                self.events.put('앱 관리 모델 준비 완료 · 데모를 해제하고 메인 창에서 번역을 시작하세요.')
+            except ReaderError as e:self.events.put(str(e))
+            finally:self.events.put(None)
+        threading.Thread(target=work,daemon=True).start()
+    def stop_engine(self,external=False):
+        if self.busy:
+            self.cancel.set();self.app.managed_engine.cancel.set();self.status.set('시작 취소 요청 중');return
+        self.app.pause();self.app.mode=None;self.app.translator=None
+        self.busy=True
+        def work():
+            try:
+                self.app.managed_engine.stop()
+                self.events.put(('external',) if external else '앱 관리 엔진 종료 완료 · 모델 전환/삭제 가능')
             except ReaderError as e:self.events.put(str(e))
             finally:self.events.put(None)
         threading.Thread(target=work,daemon=True).start()
@@ -80,7 +111,10 @@ class LocalWindow:
         try:
             while True:
                 item=self.events.get_nowait()
-                if item is None:self.busy=False
+                if item is None:
+                    self.busy=False;self.describe()
+                elif item==('external',):
+                    self.app.use_managed=False;self.status.set('외부 서버 연결 선택 · 위 포트/별칭을 확인하세요. 외부 서버는 앱이 종료하지 않습니다.')
                 else:self.status.set(item)
         except queue.Empty:pass
         self.window.after(200,self.poll)

@@ -107,3 +107,38 @@ func TestLocalNoArtificialCloudDelay(t *testing.T) {
 		t.Fatal("cloud rate gate lost")
 	}
 }
+
+func TestLocalTokenValidation(t *testing.T) {
+	for _, token := range []string{"x", strings.Repeat("a", 63), strings.Repeat("a", 63) + "\n"} {
+		if validLocalToken(token) {
+			t.Fatal("accepted invalid local token")
+		}
+	}
+	if !validLocalToken("") || !validLocalToken(strings.Repeat("a", 64)) {
+		t.Fatal("valid local token rejected")
+	}
+}
+
+func TestManagedAuthenticationAndClear(t *testing.T) {
+	token := strings.Repeat("b", 64)
+	c := NewCore()
+	_, err := c.handle(Request{Version: 1, Method: "configure", Provider: "local", LocalPort: 8087, LocalModel: "managed", LocalToken: token})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c.localHTTP = &http.Client{Transport: transportFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Header.Get("Authorization") != "Bearer "+token {
+			t.Error("missing session authentication")
+		}
+		return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(`{"choices":[{"finish_reason":"stop","message":{"content":"안녕"}}]}`))}, nil
+	})}
+	if _, err = c.requestLocal("こんにちは", ""); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = c.handle(Request{Version: 1, Method: "configure", Demo: true}); err != nil {
+		t.Fatal(err)
+	}
+	if c.localToken != "" {
+		t.Fatal("session token retained in demo")
+	}
+}
