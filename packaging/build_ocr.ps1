@@ -39,7 +39,14 @@ Copy-Item $engine "$out\tesseract.exe"
 if (Get-ChildItem "$target\tools\tesseract" -Filter '*.dll' -ErrorAction SilentlyContinue) { throw 'Unexpected OCR DLLs need explicit review.' }
 # Record and ship all built-port copyright files, SPDX SBOMs, and exact recipes.
 $allowedPorts = @('tesseract','leptonica','giflib','libjpeg-turbo','libpng','libwebp','openjpeg','tiff','zlib','liblzma','libspng','vcpkg-cmake','vcpkg-cmake-config','vcpkg-cmake-get-vars')
-$ports = Get-ChildItem "$target\share" -Directory
+# Enumerate installed packages, not share-directory aliases such as libpng's
+# share/png CMake wrapper. Only actual port notices/recipes are redistributed.
+$statusText = Get-Content -Raw "$install\vcpkg\status"
+$packageNames = @($statusText -split '(?:\r?\n){2,}' | ForEach-Object {
+    if ($_ -match '(?m)^Architecture: x64-kotoba-static\r?$' -and $_ -match '(?m)^Package: ([^\r\n]+)') { $Matches[1] }
+} | Sort-Object -Unique)
+if ($packageNames.Count -eq 0) { throw 'No target packages found in vcpkg status.' }
+$ports = @($packageNames | ForEach-Object { Get-Item (Join-Path "$target\share" $_) -ErrorAction Stop })
 foreach ($port in $ports) {
     if ($port.Name -notin $allowedPorts) { throw "Unreviewed dependency $($port.Name): update license review before packaging." }
     $copyright = Join-Path $port.FullName 'copyright'
