@@ -35,3 +35,6 @@ upstream host의 고정 이름 named pipe와 permissive ACL, 클립보드 로컬
 Linux 단위 테스트는 UTF-16 CLI 문장 형식의 합성 문자열, PID 필터/재사용, 명령 제한, 잘못된 바이너리, 동의 없음, 입력 폭주, 종료/버퍼 폐기를 검증한다. 실제 Windows API와 실행 파일 시험을 대체하지 않는다.
 
 `Experimental hook CLI fixture` CI는 공식 ZIP 해시를 확인하고 먼저 빈 stdin으로 CLI를 종료한다. 그 다음 이번 테스트가 직접 생성한 보호 없는 GDI 창에만 연결해 고정 합성 문장이 수신되는지 확인한다. 사용자 프로세스를 탐색해서 연결하지 않으며 실제 게임·키·번역 API는 사용하지 않는다. 테스트 결과는 해당 커밋의 Actions가 기준이다. 첫 Windows CI에서 CLI 무연결 실행과 fixture 빌드는 통과했으나 후보 수신이 실패했다. fixture 출력 간격이 엔진의 문장 flush 간격보다 짧았던 가능성을 검토해 간격을 1.2초로 바꾸고 재시험한다. 원인 확정/후킹 성공을 주장하지 않으며 실제 게임 후킹/해제 정상 동작은 미검증이다.
+
+
+후속 실측: 커밋 `af49fad284c18578e32216f570ea54a25b841beb`의 [Windows Server 2025 x64 합성 CI](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43494424498)는 공식 ZIP 검사, CLI 무연결 실행, 보호 없는 자체 GDI 프로그램 연결 후 일본어 후보 수신을 모두 통과했다. 1.2초 출력 간격에서 성공했으며 이전 실패의 모든 원인을 확정하는 것은 아니다. 실제 게임/32비트 연결/후크 제거 확인/저사양 성능은 여전히 미검증이다.

@@ -42,3 +42,15 @@ class StudyUIHelperTests(unittest.TestCase):
     def test_source_selection_takes_precedence(self):
         window=self.window('猫です。','猫です。','猫')
         self.assertEqual(window.selected(),'猫です。')
+
+class DictionaryConsentTests(unittest.TestCase):
+    def test_naver_is_opened_only_after_confirmation(self):
+        from unittest.mock import Mock,patch
+        from study_ui import StudyWindow
+        window=StudyWindow.__new__(StudyWindow);window.selected=lambda:'猫 & 犬'
+        window.window=Mock();window.status=Mock()
+        with patch('study_ui.messagebox.askyesno',return_value=False),patch('study_ui.webbrowser.open') as browser:
+            window.lookup();browser.assert_not_called()
+        with patch('study_ui.messagebox.askyesno',return_value=True) as confirm,patch('study_ui.webbrowser.open',return_value=True) as browser:
+            window.lookup();self.assertIn('네이버',confirm.call_args.args[1])
+            self.assertTrue(browser.call_args.args[0].startswith('https://ja.dict.naver.com/#/search?query='))

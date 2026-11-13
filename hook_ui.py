@@ -90,10 +90,10 @@ class HookWindow:
             self.client.drain() # Check live identity before transmitting any selected text.
             session=self.client.candidates
             if not session.selected:raise ReaderError('실제 대사 후보를 먼저 선택하세요.')
-            text=session.select(session.selected)
+            identifier=session.selected;text=session.select(identifier)
             provider=self.app.provider.get()
             if not messagebox.askyesno('번역 전송 확인',f'선택 원문을 {provider} 제공자에 1회 전송합니다.\n\n{text}\n\n개인정보가 없고 게임 대사가 맞습니까?',parent=self.window):return
-            self.app.translate_input(text)
+            self.app.translate_input(self.client.confirmed_text(identifier,text))
         except ReaderError as e:self.status.set(str(e))
     def stop(self):
         self.app.pause();self.status.set(self.client.close());self.list.delete(0,'end');self.rows=[];self.show('');self.consent.set(False)

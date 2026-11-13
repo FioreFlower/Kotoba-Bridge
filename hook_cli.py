@@ -136,6 +136,14 @@ class CliSession:
             identifier,text=self.events.get_nowait()
             self.candidates.ingest(self.candidates.generation,identifier,text);changed=True;self.received=True
         return changed
+    def confirmed_text(self, identifier, expected):
+        self.drain()
+        session=self.candidates
+        current=session.candidates.get(identifier)
+        if session.selected!=identifier or current is None or current.text!=expected:
+            raise ReaderError('확인 중 후보가 바뀌었습니다. 새 대사를 다시 확인하세요.')
+        return current.text
+
     def close(self):
         self.stopped.set();self.candidates.stop()
         p=self.process

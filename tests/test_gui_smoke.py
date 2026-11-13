@@ -20,6 +20,12 @@ class WidgetSmokeTests(unittest.TestCase):
         self.root.update_idletasks()
     def tearDown(self):
         self.app.close();self.setting_patch.stop();self.data_patch.stop();self.folder.cleanup()
+    def test_hook_window_never_launches_implicitly(self):
+        with patch('hook_cli.subprocess.Popen') as launch:
+            self.app.open_hook();window=self.app.input_window
+            self.assertFalse(window.consent.get());self.assertIsNone(window.client.process)
+            launch.assert_not_called();window.close();self.assertIsNone(self.app.input_window)
+
     def test_borderless_subtitle(self):
         self.assertTrue(self.app.subtitle.window.overrideredirect())
 

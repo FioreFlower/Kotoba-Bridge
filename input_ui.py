@@ -31,7 +31,7 @@ class InputWindow:
         self.list.bind('<<ListboxSelect>>',self.select)
         self.detail=tk.StringVar(value='후보는 자동 선택하지 않습니다. 추천은 정답이나 정확도 확률이 아닙니다.')
         ttk.Label(body,textvariable=self.detail,wraplength=700).pack(anchor='w')
-        ttk.Label(body,text='실제 후킹 도구는 별도 설치·동의가 필요합니다. 온라인/안티치트 게임 사용을 피하고,\n보안 예외나 관리자 승격이 필요하면 중단하세요. 통합 프로세스 선택/주입은 제공하지 않습니다.',wraplength=700).pack(anchor='w',pady=8)
+        ttk.Label(body,text='실제 후킹 도구는 별도 설치·동의가 필요합니다. 온라인/안티치트 게임 사용을 피하고,\n보안 예외나 관리자 승격이 필요하면 중단하세요. 이 붙여넣기 창은 주입하지 않습니다. 실제 연결은 별도 실험 메뉴입니다.',wraplength=700).pack(anchor='w',pady=8)
         ttk.Button(body,text='닫고 OCR 설정으로 복귀 (자동 시작 안 함)',command=self.close).pack(anchor='e')
     def changed(self,event=None):
         if self.text.edit_modified():

@@ -50,6 +50,13 @@ class HookCliTests(unittest.TestCase):
   c.candidates.start(True);c.candidates.ingest(c.candidates.generation,'a','明日。')
   message=c.close();p.stdin.write.assert_called_once_with('detach -P123\n');self.assertIsNone(c.process)
   self.assertFalse(c.candidates.active);self.assertIn('확인할 수 없습니다',message)
+ def test_confirmation_rechecks_candidate_after_dialog(self):
+  c=CliSession();c.drain=Mock();token=c.candidates.start(True)
+  c.candidates.ingest(token,'a','明日。');c.candidates.select('a')
+  self.assertEqual(c.confirmed_text('a','明日。'),'明日。')
+  c.candidates.ingest(token,'a','今日は。')
+  with self.assertRaises(ReaderError):c.confirmed_text('a','明日。')
+
  @unittest.skipUnless(os.name=='nt','Windows process APIs')
  def test_current_process_identity_is_stable(self):
   a=identity(os.getpid());self.assertEqual(identity(os.getpid()),a);self.assertIn(a.arch,('x64','x86'))
