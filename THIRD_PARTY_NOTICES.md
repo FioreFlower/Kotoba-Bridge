@@ -20,3 +20,7 @@ DeepL은 외부 서비스이며 코드를 재배포하지 않는다. 사용자 �
 Wiktionary는 사용자가 선택한 페이지를 외부 브라우저에서 여는 링크 연동이다. 본문이나 사전 데이터셋을 포함하지 않는다. Wikimedia의 CC BY-SA 4.0 정책과 항목별 라이선스/기여자 이력을 확인해야 하며, 향후 재사용 시 표시와 동일조건 공유 의무를 검토한다. https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
 
 예제 일본어/한국어 3쌍은 이 프로젝트를 위해 작성한 합성 문장이다. 실제 게임 대사·화면·사용자 복습 데이터는 포함하지 않는다. 향후 사용자가 생성한 게임 기록의 권리는 해당 권리자에게 있다.
+
+후속 번들 빌드의 Python은 공식 Windows 다운로드 목록에서 확인한 3.13.17로 CI를 고정한다. [공식 Windows 릴리스](https://www.python.org/downloads/windows/). 이전 3.11.9 기반 후보는 보관된 개발 기록이며 최신 배포 기반으로 사용하지 않는다. 런타임/의존성 전체 취약점 부재를 보증하지 않으며 배포 전 현재 보안 공지 검토가 필요하다.
+
+2026-11-13 공식 PyPI JSON 검사에서 이전 Pillow 11.3.0에 보안 공지가 확인되어 13.0.0으로 갱신했다. 그 시점 Pillow 13.0.0/mss 10.0.0/PyInstaller 6.22.3 응답의 vulnerabilities 목록은 비어 있었다(알려지지 않은 취약점 부재 보증 아님). 배포 런타임의 Pillow/mss 다운로드는 requirements-lock.txt에 고정한 공식 PyPI SHA256을 --require-hashes로 검증한다. [Pillow 메타데이터](https://pypi.org/pypi/Pillow/13.0.0/json), [mss 메타데이터](https://pypi.org/pypi/mss/10.0.0/json).

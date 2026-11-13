@@ -27,13 +27,14 @@
 | openjpeg | BSD-2-Clause |
 | libspng | BSD-2-Clause AND libpng-2.0; 합본 고지 포함 |
 | libtiff | libtiff 라이선스 |
+| liblzma (XZ) | 0BSD 라이브러리만 연결; tools 기능과 별도 XZ 명령은 배포하지 않음 |
 | vcpkg CMake 보조 ports | MIT, 빌드 도구이며 설치된 고지문도 보존 |
 
 [Leptonica 원문](https://github.com/DanBloomberg/leptonica/blob/master/leptonica-license.txt)은 바이너리 배포 자료에 저작권·조건·면책을 포함하도록 합니다. 나머지 정확한 버전별 원문은 [고정된 ports](https://github.com/microsoft/vcpkg/tree/fe8e78fac7df2793f9848ed0d27aa59d9c035998/ports)와 빌드 결과 copyright 파일을 함께 확인합니다. 인가 목록 밖의 새 의존성이나 copyright 누락은 빌드 실패입니다. OCR 의존성 외 Python/Pillow/Tk/Go 고지문은 기존 THIRD_PARTY_LICENSES 수집과 THIRD_PARTY_NOTICES.md를 따릅니다.
 
 ## 빌드와 필수 검사
 
-Windows x64 개발 환경(Visual Studio C++ 빌드 도구, Python 3.11, Go, Inno Setup 6) 또는 `Windows installer candidate` CI에서:
+Windows x64 개발 환경(Visual Studio C++ 빌드 도구, Python 3.13, Go, Inno Setup 6) 또는 `Windows installer candidate` CI에서:
 
 ```powershell
 ./packaging/build_ocr.ps1

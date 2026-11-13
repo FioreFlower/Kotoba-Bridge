@@ -10,8 +10,8 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
 if ($env:OS -ne 'Windows_NT') { throw 'Run this build on Windows x64.' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use a 64-bit PowerShell and Python installation.' }
-& $PythonExe -c "import struct,sys; assert struct.calcsize('P')==8; assert sys.version_info[:2]==(3,11)"
-if ($LASTEXITCODE -ne 0) { throw 'Python 3.11 x64 is required.' }
+& $PythonExe -c "import struct,sys; assert struct.calcsize('P')==8; assert sys.version_info[:2]==(3,13)"
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.13 x64 is required.' }
 if (-not $TesseractRoot) { throw 'An audited OCR source bundle is required.' }
 if ($TesseractRoot) {
     $TesseractRoot = (Resolve-Path $TesseractRoot).Path
@@ -37,7 +37,9 @@ try {
 & $PythonExe -m venv .build-venv
 if ($LASTEXITCODE -ne 0) { throw 'Python venv failed.' }
 $buildPython = Join-Path $projectRoot '.build-venv\Scripts\python.exe'
-& $buildPython -m pip install -r requirements.txt pyinstaller==6.22.3
+& $buildPython -m pip install --require-hashes -r requirements-lock.txt
+if ($LASTEXITCODE -ne 0) { throw 'Runtime dependency hash verification failed.' }
+& $buildPython -m pip install pyinstaller==6.22.3
 if ($LASTEXITCODE -ne 0) { throw 'Dependency install failed.' }
 & $buildPython -W error::ResourceWarning -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) { throw 'Python tests failed.' }

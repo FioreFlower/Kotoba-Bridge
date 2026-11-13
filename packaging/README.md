@@ -4,7 +4,7 @@
 
 ## 자동 빌드
 
-GitHub 저장소에서 **Actions → Windows installer candidate → Run workflow → 사용할 브랜치 선택 → Run workflow**로 실행한다. 새 workflow가 기본 브랜치에 아직 없으면 GitHub가 수동 실행 메뉴를 노출하지 않을 수 있다. 먼저 해당 workflow 파일이 기본 브랜치에 등록되어 있어야 하며, UI에서 제공하지 않는 실행 경로를 성공했다고 주장하지 않는다. workflow 파일은 `.github/workflows/build-windows.yml`이다. 관련 소스·테스트·패키징 변경의 `pull_request`에서도 실행하므로 기본 브랜치에 병합하기 전에 설치 후보를 검증할 수 있다. PR 실행은 `contents: read`이며 secrets, `pull_request_target`, 자동 Release 게시를 사용하지 않는다. Windows Server 2025 x64 runner에 Python 3.11 x64, Go를 설정하고 다음을 수행한다.
+GitHub 저장소에서 **Actions → Windows installer candidate → Run workflow → 사용할 브랜치 선택 → Run workflow**로 실행한다. 새 workflow가 기본 브랜치에 아직 없으면 GitHub가 수동 실행 메뉴를 노출하지 않을 수 있다. 먼저 해당 workflow 파일이 기본 브랜치에 등록되어 있어야 하며, UI에서 제공하지 않는 실행 경로를 성공했다고 주장하지 않는다. workflow 파일은 `.github/workflows/build-windows.yml`이다. 관련 소스·테스트·패키징 변경의 `pull_request`에서도 실행하므로 기본 브랜치에 병합하기 전에 설치 후보를 검증할 수 있다. PR 실행은 `contents: read`이며 secrets, `pull_request_target`, 자동 Release 게시를 사용하지 않는다. Windows Server 2025 x64 runner에 Python 3.13 x64, Go를 설정하고 다음을 수행한다.
 
 1. 고정 vcpkg 소스에서 OCR/코덱 정적 빌드, 일본어 모델 해시와 라이선스 수집, PE 런타임 의존성 검사. Go/Python 테스트와 IPC core 빌드.
 2. PyInstaller onedir UI 패키징, Go core와 런타임 라이선스 고지 복사.
@@ -17,7 +17,7 @@ GitHub 저장소에서 **Actions → Windows installer candidate → Run workflo
 
 ## 로컬 Windows 빌드
 
-Windows x64, Visual Studio C++ 빌드 도구, Python 3.11 x64, Go, 공식 Inno Setup 6을 준비한다. 다음 명령은 정상 PowerShell 실행 정책 내에서 실행한다. 정책 우회 옵션을 사용하지 않는다.
+Windows x64, Visual Studio C++ 빌드 도구, Python 3.13 x64, Go, 공식 Inno Setup 6을 준비한다. 다음 명령은 정상 PowerShell 실행 정책 내에서 실행한다. 정책 우회 옵션을 사용하지 않는다.
 
 ```powershell
 ./packaging/build_ocr.ps1

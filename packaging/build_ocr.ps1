@@ -38,7 +38,7 @@ Copy-Item $engine "$out\tesseract.exe"
 # Static dependency build must not silently acquire a separate third-party DLL runtime.
 if (Get-ChildItem "$target\tools\tesseract" -Filter '*.dll' -ErrorAction SilentlyContinue) { throw 'Unexpected OCR DLLs need explicit review.' }
 # Record and ship all built-port copyright files, SPDX SBOMs, and exact recipes.
-$allowedPorts = @('tesseract','leptonica','giflib','libjpeg-turbo','libpng','libwebp','openjpeg','tiff','zlib','libspng','vcpkg-cmake','vcpkg-cmake-config','vcpkg-cmake-get-vars')
+$allowedPorts = @('tesseract','leptonica','giflib','libjpeg-turbo','libpng','libwebp','openjpeg','tiff','zlib','liblzma','libspng','vcpkg-cmake','vcpkg-cmake-config','vcpkg-cmake-get-vars')
 $ports = Get-ChildItem "$target\share" -Directory
 foreach ($port in $ports) {
     if ($port.Name -notin $allowedPorts) { throw "Unreviewed dependency $($port.Name): update license review before packaging." }
@@ -51,6 +51,7 @@ foreach ($port in $ports) {
     $recipe = Join-Path $repo "ports\$($port.Name)"
     if (Test-Path $recipe) { Copy-Item $recipe (Join-Path "$out\provenance" $port.Name) -Recurse }
 }
+Copy-Item "$repo\LICENSE.txt" "$out\licenses\vcpkg-LICENSE.txt"
 Copy-Item "$install\vcpkg\status" "$out\provenance\vcpkg-status.txt"
 Copy-Item "$manifest\vcpkg.json", "$manifest\triplets\x64-kotoba-static.cmake" "$out\provenance"
 Invoke-WebRequest -Uri "https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/$modelPin/jpn.traineddata" -OutFile "$out\tessdata\jpn.traineddata"
