@@ -80,6 +80,7 @@ class App:
         root.attributes('-topmost', False)
         self.study=StudyStore()
         self.study_window=None
+        self.input_window=None
         self.subtitle=Subtitle(root)
         self.ready_at = 0
         self.running = False
@@ -125,6 +126,7 @@ class App:
         ttk.Button(row, text='대화 지우기', command=self.clear).pack(side='left')
         ttk.Button(row, text='학습 / 기록', command=self.learn).pack(side='left', padx=6)
         ttk.Button(row,text='API 키 지우기',command=self.forget_key).pack(side='left')
+        ttk.Button(panel,text='외부 원문 붙여넣기 / 후보 선택 체험',command=self.open_input).pack(anchor='w')
         self.status = tk.StringVar(value='준비 · 세션 최대 100회 / 10,000자 · 최소 호출 간격 3초')
         ttk.Label(panel, textvariable=self.status, wraplength=650).pack(anchor='w', pady=8)
         self.output = tk.Text(panel, height=9, wrap='word', font=('', 16), bg='#17212d', fg='#f3f6fa')
@@ -133,7 +135,7 @@ class App:
         root.bind('<Escape>', lambda _: self.pause())
         root.protocol('WM_DELETE_WINDOW', self.close)
         self.mode = None
-        self.consent.trace_add('write',lambda *_:self.pause() if not self.consent.get() and self.running else None)
+        self.consent.trace_add('write',lambda *_:self.pause() if not self.consent.get() and (self.running or self.busy) else None)
         try:
             saved=load_settings(settings_path())
             if saved:
@@ -143,6 +145,40 @@ class App:
         except (ReaderError,OSError):
             self.status.set('저장된 설정을 읽지 못했습니다. 초기 설정에서 다시 저장하거나 삭제하세요.')
         root.after(100, self.poll)
+
+    def open_input(self):
+        self.pause()
+        if self.busy:
+            self.status.set('진행 중 작업이 끝난 뒤 입력 창을 열어 주세요.');return
+        if self.input_window:
+            self.input_window.window.lift();return
+        from input_ui import InputWindow
+        self.input_window=InputWindow(self)
+
+    def translate_input(self,text):
+        from input_sources import source_text
+        text=source_text(text)
+        if self.busy:raise ReaderError('진행 중 작업이 끝난 뒤 다시 눌러 주세요.')
+        if not self.consent.get():raise ReaderError('메인 화면의 외부 전송 동의가 필요합니다.')
+        self.pause()
+        if self.bridge is None:self.bridge=GoBridge()
+        self.bridge.call('configure',key=self.key.get(),pro=self.pro.get(),demo=False)
+        self.key.delete(0,'end');self.mode=(False,self.pro.get())
+        self.translator=GoTranslator(self.bridge)
+        # Each reviewed paste is independent; retain session budget, clear old context.
+        self.bridge.call('clear')
+        self.stop_event=threading.Event();self.busy=True
+        generation=self.generation;stop=self.stop_event;translator=self.translator
+        def work():
+            try:
+                if stop.is_set():return
+                translated=translator.translate(text)
+                if not stop.is_set():self.results.put((generation,'text',text+'\n\n'+translated))
+            except ReaderError as e:self.results.put((generation,'error',str(e)))
+            except Exception:self.results.put((generation,'error','입력 번역 실패. 자동 재시도하지 않습니다.'))
+            finally:self.results.put((generation,'done',''))
+        threading.Thread(target=work,daemon=True).start()
+        self.status.set('확인한 외부 원문 1회 번역 중 · 자동 감시 없음')
 
     def local_output(self,value):
         self.output.configure(state='normal');self.output.delete('1.0','end')
@@ -160,7 +196,7 @@ class App:
         if self.setup_window and self.setup_window.winfo_exists():
             self.setup_window.lift();return
         win=tk.Toplevel(self.root);self.setup_window=win
-        win.title('초기 설정 · 로컬 점검');win.geometry('660x380')
+        win.title('초기 설정 · 로컬 점검');win.geometry('680x440')
         body=ttk.Frame(win,padding=16);body.pack(fill='both',expand=True)
         ttk.Label(body,text='1. Tesseract 일본어 OCR 설치',font=('',14,'bold')).pack(anchor='w')
         ttk.Label(body,text='앱 설치본에는 OCR 엔진/일본어 모델이 기본 포함되지 않습니다.\n공식 안내의 Windows 배포처에서 설치하며 jpn 언어팩을 선택하세요.',wraplength=620).pack(anchor='w',pady=8)
@@ -168,6 +204,7 @@ class App:
             import webbrowser
             webbrowser.open('https://tesseract-ocr.github.io/tessdoc/Installation.html')
         ttk.Button(body,text='공식 OCR 설치 안내 열기 (브라우저)',command=instructions).pack(anchor='w')
+        ttk.Button(body,text='단계별 설치 도움말 / 일본어 언어팩',command=self.ocr_help).pack(anchor='w',pady=4)
         ttk.Entry(body,textvariable=self.engine,width=75).pack(fill='x',pady=8)
         row=ttk.Frame(body);row.pack(fill='x')
         def browse():
@@ -189,6 +226,17 @@ class App:
         ttk.Button(row,text='저장 설정 삭제',command=self.delete_settings).pack(side='left',padx=6)
         ttk.Button(row,text='닫기',command=win.destroy).pack(side='right')
         ttk.Label(body,text='저장: 영역 좌표와 엔진 경로만. API 키·동의·대사·학습 데이터는 포함하지 않습니다.',wraplength=620).pack(anchor='w')
+
+    def ocr_help(self):
+        from ocr_install import format_install_guide,get_install_guide
+        import webbrowser
+        win=tk.Toplevel(self.root);win.title('OCR 설치 도움말 · 자동 설치 없음');win.geometry('740x620')
+        text=tk.Text(win,wrap='word',padx=12,pady=12);text.pack(fill='both',expand=True)
+        text.insert('1.0',format_install_guide());text.configure(state='disabled')
+        for label,url in get_install_guide()['links'][:3]:
+            ttk.Button(win,text=label+' (브라우저)',command=lambda url=url:webbrowser.open(url)).pack(anchor='w',padx=12,pady=3)
+        ttk.Button(win,text='설치 후 OCR 다시 확인 (로컬 실행)',command=self.check_environment).pack(anchor='w',padx=12,pady=8)
+        ttk.Button(win,text='닫기',command=win.destroy).pack(anchor='e',padx=12,pady=8)
 
     def persist_settings(self):
         try:
@@ -300,7 +348,7 @@ class App:
         self.status.set('대화·입력 키 삭제. 사용량 한도는 유지됩니다. 앱 종료 시 메모리 해제.')
 
     def start(self):
-        if self.running or self.busy or self.study_window is not None:
+        if self.running or self.busy or self.study_window is not None or self.input_window is not None:
             return
         try:
             mode = (self.demo.get(), self.pro.get())

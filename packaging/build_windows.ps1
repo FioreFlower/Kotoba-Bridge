@@ -45,6 +45,7 @@ if ($LASTEXITCODE -ne 0) { throw 'UI freezing failed.' }
 $bundle = Join-Path $projectRoot 'dist\KotobaBridge'
 Copy-Item kotoba-core.exe $bundle
 Copy-Item README.md,INSTALLATION.md,DESIGN.md,COMPATIBILITY.md,THIRD_PARTY_NOTICES.md,LICENSE $bundle
+Copy-Item docs (Join-Path $bundle 'docs') -Recurse -Force
 & $buildPython packaging\collect_notices.py --output (Join-Path $bundle 'THIRD_PARTY_LICENSES')
 if ($LASTEXITCODE -ne 0) { throw 'License collection failed.' }
 $goRoot = (go env GOROOT).Trim()

@@ -2,14 +2,14 @@
 
 검토일: 2026-11-13. 공식 저장소와 공식 문서를 읽은 설계 조사이며 Windows 게임 실행·후킹·성능 검증 결과가 아니다.
 
-**현재 구현은 로컬 화면 OCR과 데모 입력뿐이다.** 아래 붙여넣기, 파일, 파이프, Textractor/LunaTranslator 연동은 제안이며 제품 기능으로 제공되지 않는다. Kotoba Bridge는 게임 프로세스에 주입하지 않는다. OCR 개발과 설치 개선을 우선하고, 입력원 인터페이스를 추후 확장하는 방향이다.
+**현재 구현은 OCR·데모·사용자가 명시적으로 붙여넣은 원문의 1회 번역이다.** 합성 후보 선택 체험은 로컬 테스트 UI이며 실제 게임 탐색이 아니다. 파일·파이프·WebSocket·Textractor/LunaTranslator 직접 연동은 미구현이다. Kotoba Bridge는 게임 프로세스에 주입하지 않는다. OCR 개발과 설치 개선을 우선하고, 입력원 인터페이스를 추후 확장하는 방향이다.
 
 ## 가치와 선택
 
 | 입력원 | 가치 | 제약·전송 위험 | 현재 상태 |
 | --- | --- | --- | --- |
 | 선택 영역 로컬 OCR | 게임 엔진에 독립적이고 게임 메모리를 변경하지 않음 | 장식 글꼴·루비·세로쓰기·배경·텍스트 애니메이션 오인식, 캡처 영역에 다른 창이 덮이면 사적 텍스트 인식 가능 | 구현됨. Windows 실기 품질 미검증 |
-| 사용자가 붙여넣는 텍스트 | 추출 오류 확인·수정 후 번역 가능, OCR 불가 게임의 최소 대안 | 클립보드의 비밀번호·메시지를 잘못 붙여넣을 수 있음. 게임 중 반복 조작 필요 | 미구현. 가장 먼저 검토할 추가 입력원 |
+| 사용자가 붙여넣는 텍스트 | 추출 오류 확인·수정 후 번역 가능, OCR 불가 게임의 최소 대안 | 클립보드의 비밀번호·메시지를 잘못 붙여넣을 수 있음. 게임 중 반복 조작 필요 | 구현됨. 원문 확인과 별도 전송 확인 후 1회 번역; 자동 클립보드 감시 없음 |
 | 사용자가 선택한 텍스트 파일 | 게임의 공식 로그 등 이미 제공되는 텍스트 재사용 | 전체 로그·옛 대사·다른 프로그램 파일의 대량 전송 위험, 인코딩과 부분 쓰기 처리 필요 | 미구현 |
 | 명시적 로컬 파이프 연결 | 외부 도구가 추출한 원문을 화면 OCR 없이 전달 가능 | 도구별 출력 규격·권한·버전·출처 검증 필요. 범용 호환을 보장할 수 없음 | 미구현. 프로토콜 설계 및 실기 시험 필요 |
 | 별도 설치된 텍스트 후킹 도구의 출력 | 지원되는 게임에서 OCR 오인식과 캡처 비용을 줄일 가능성 | 엔진·게임 패치·32/64비트·보호 기능에 따라 실패·충돌 가능. 화면에 아직 없는 대사나 중복 스트림도 들어올 수 있음 | 조사만 수행 |
@@ -30,7 +30,7 @@ upstream에는 선택된 게임 텍스트를 Windows 클립보드로 복사하�
 
 공식 배포 문서는 일반 64비트판에 Windows 10 1803 이상/11을 표시한다. 이는 해당 도구의 표기이며 개별 게임, 현재 릴리스 또는 Kotoba Bridge 연동을 검증한 결과가 아니다. 문서의 보안 프로그램 예외·비활성화 안내는 본 프로젝트에서 채택하지 않는다. 보안 경고가 발생하면 작업을 중단하며 예외 추가, TLS 검증 해제, 관리자 권한 자동 요청을 하지 않는다. [공식 배포·FAQ](https://docs.lunatranslator.org/en/README.html)
 
-후킹 입력도 한두 글자씩 도착하거나 계속 반복되고 대량 출력될 수 있다는 설명이 있다. OCR을 없애도 안정화·버퍼 제한은 필요하다. 이번 조사로 Kotoba Bridge에 적합한 안정된 외부 출력 API를 검증하지 못했으므로 LunaTranslator를 즉시 연결 가능한 어댑터로 광고하지 않는다. [공식 HOOK 설정](https://docs.lunatranslator.org/en/hooksettings.html)
+후킹 입력도 한두 글자씩 도착하거나 계속 반복되고 대량 출력될 수 있다는 설명이 있다. OCR을 없애도 안정화·버퍼 제한은 필요하다. 후속 고정 커밋 조사에서 텍스트 출력 WebSocket은 확인했다. 그러나 프로세스/후보 열거를 제어하는 안정된 외부 API와 Kotoba Bridge 어댑터는 검증되지 않았다. 아래 인터페이스 조사 결과를 구분해서 읽어야 한다. [공식 HOOK 설정](https://docs.lunatranslator.org/en/hooksettings.html)
 
 ## MIT와 타사 라이선스 경계
 
@@ -76,6 +76,37 @@ Textractor의 엔진 지원 및 확장 구조와 LunaTranslator의 후보 선택
 
 ## 단계와 검증 조건
 
-먼저 OCR 초기 설정·실기 검증을 진행하고, 그 다음 수동 붙여넣기 + 로컬 원문 확인을 독립 기능으로 개발한다. 파일/파이프는 가짜 입력 생산자로 폭주·중복·비정상 UTF-8·잘못된 버전·연결 종료·세션 전환·늦은 응답·비용 상한 테스트를 통과한 뒤 고려한다. 실제 후킹 도구와 연결하는 단계는 라이선스 검토 및 사용자가 허용한 오프라인 게임에서만 별도 검증한다.
+수동 붙여넣기 + 로컬 원문 확인·1회 번역과 합성 후보 체험을 구현했다. 후보 세션은 32개 스트림·각 2,000자·1,000개 이벤트로 제한하고 종료 시 지우며 이전 세대 입력을 폐기한다. 추천 순서는 정답을 의미하지 않고 자동 선택/전송하지 않는다. 합성 체험은 타이머나 실제 프로세스 탐색이 아니라 사용자가 다음 예제 대사를 누르는 검증용 흐름이다. 게임별 프로필 저장은 실제 출처 계약이 정해질 때까지 미구현이다. 파일/파이프는 가짜 입력 생산자로 폭주·중복·비정상 UTF-8·잘못된 버전·연결 종료·세션 전환·늦은 응답·비용 상한 테스트를 통과한 뒤 고려한다. 실제 후킹 도구와 연결하는 단계는 라이선스 검토 및 사용자가 허용한 오프라인 게임에서만 별도 검증한다.
 
 검증 보고에는 게임/엔진/버전, 도구 릴리스, Windows 버전, 게임과 도구의 32/64비트, 입력원, 오류·성능 측정치를 적는다. 게임 이미지·사적 대사·API 키는 공개 테스트 자료에 넣지 않는다. 이번 문서 작성 중 게임 실행, DLL 주입, 도구 설치, 유료 API 호출은 하지 않았다. 외부 입력원이나 후킹 지원 완료를 의미하지 않는다.
+
+## 고정 커밋 인터페이스 재조사 — 2026-11-13
+
+공식 GitHub API로 조회한 기본 브랜치 커밋을 고정하여 다음 파일들을 읽었다. 도구 실행, DLL 로딩, 주입, WebSocket 접속, 유료 API 호출은 하지 않았다. 공개 소스의 함수가 존재하는 것과 외부 애플리케이션용으로 안정성을 보장한 API인 것은 다르다.
+
+- Textractor: [`df5b830d1757a66aa162f8081e99d42c9bd50488`](https://github.com/Artikash/Textractor/commit/df5b830d1757a66aa162f8081e99d42c9bd50488)
+- LunaTranslator: [`85c2234f34bab38def18e4f8f7c1e702e1344ade`](https://github.com/HIllya51/LunaTranslator/commit/85c2234f34bab38def18e4f8f7c1e702e1344ade)
+
+### Textractor: 내부 호스트와 확장 경계
+
+[`host/host.h`](https://github.com/Artikash/Textractor/blob/df5b830d1757a66aa162f8081e99d42c9bd50488/host/host.h)에는 `Host::Start`의 프로세스 연결/종료 및 텍스트 스레드 생성/제거/출력 콜백, `Host::FindHooks`, `Host::GetThread`, `Host::DetachProcess`가 선언되어 있다. 따라서 프로그램 내부에서 후보 이벤트를 받고 탐색·종료를 제어하는 기능은 존재한다. [`GUI/mainwindow.cpp`](https://github.com/Artikash/Textractor/blob/df5b830d1757a66aa162f8081e99d42c9bd50488/GUI/mainwindow.cpp)는 `GetAllProcesses()`로 프로세스를 얻고 `Host::Start(ProcessConnected, ProcessDisconnected, ThreadAdded, ThreadRemoved, SentenceReceived)`를 연결한다. 이들은 C++/Qt 호스트 내부 인터페이스이며, 설치된 별도 Textractor에 접속하여 프로세스/후보를 열거하는 버전 관리된 외부 서비스 API가 확인된 것은 아니다.
+
+[`extensions/copyclipboard.cpp`](https://github.com/Artikash/Textractor/blob/df5b830d1757a66aa162f8081e99d42c9bd50488/extensions/copyclipboard.cpp)의 `ProcessSentence`는 `current select`와 `process id`를 검사한 뒤 문장만 `CF_UNICODETEXT`로 복사한다. 프로세스 ID, 후보/스레드 식별자, 이벤트 순서·시각·세션, 게임 종료 이벤트는 그 텍스트에 포함되지 않는다. 따라서 수신자가 클립보드 문자열만 보고 게임 출처나 현재 후보를 인증하거나 후보 목록을 복원할 수 없다. 현재 클립보드 소유자 정보도 게임 출처의 충분한 증명이 아니다. 같은 문장이 서로 다른 장면/게임에서 올 수 있고 다른 앱이 값을 덮어쓸 수 있다.
+
+[`extensions/extension.h`](https://github.com/Artikash/Textractor/blob/df5b830d1757a66aa162f8081e99d42c9bd50488/extensions/extension.h)의 `SentenceInfo`는 확장 내부에 메타데이터를 전달하는 구조다. 이를 보존하는 새 확장은 수동 붙여넣기와 다른 개발·배포 작업이며, 해당 확장과 호스트의 GPL 결합 관계를 검토해야 한다. 이번 작업은 확장 소스를 복사하지 않았다.
+
+### LunaTranslator: 공개 텍스트 출력은 존재, 후보 제어와 구분
+
+[공식 Network Service 문서](https://docs.lunatranslator.org/en/apiservice.html)는 `/api/ws/text/origin` 원문 출력과 `/api/ws/text/trans` 번역 출력 WebSocket을 명시한다. 이전 조사에서 외부 출력 API를 확인하지 못했다고 적은 부분은 이 결과로 보완한다. API가 전혀 없다고 표현하면 부정확하다.
+
+고정 커밋의 [`network/server/servicecollection.py`](https://github.com/HIllya51/LunaTranslator/blob/85c2234f34bab38def18e4f8f7c1e702e1344ade/src/LunaTranslator/network/server/servicecollection.py)에 `TextOutputOrigin`, `TextOutputTrans` 및 `registerall`이 있다. [`textio/textoutput/websocket.py`](https://github.com/HIllya51/LunaTranslator/blob/85c2234f34bab38def18e4f8f7c1e702e1344ade/src/LunaTranslator/textio/textoutput/websocket.py)의 `Outputer.dispatch(text, isorigin)`는 원문/번역에 해당하는 핸들러에 `send_text(text)`를 보낸다. 이 출력은 텍스트이며 후보 ID·게임 PID·선택/종료 상태를 담은 이벤트 계약이 아니다. [`textio/textoutput/clipboard.py`](https://github.com/HIllya51/LunaTranslator/blob/85c2234f34bab38def18e4f8f7c1e702e1344ade/src/LunaTranslator/textio/textoutput/clipboard.py)의 같은 메서드도 원문/번역 설정을 검사한 뒤 텍스트만 클립보드에 쓴다. 원문과 번역 출력을 함께 설정하면 번역문을 원문으로 오인할 위험도 별도로 다뤄야 한다.
+
+검토한 공식 서비스 문서와 `registerall` 목록에서는 프로세스 목록, 후보 목록, 주입 동의, 후보 선택, 후크 해제를 제어하는 공개 엔드포인트를 찾지 못했다. 이는 조사한 범위의 결론이며 모든 향후 버전이나 별도 프로젝트에 그런 API가 없다는 증명은 아니다. 출력 WebSocket의 인증, 바인딩 주소, 외부 접근 차단, 버전 호환성도 실기 검증하지 않았다. 따라서 발견된 경로에 자동 접속하거나 네트워크 서비스를 자동 활성화하지 않는다.
+
+[`textio/textsource/texthook.py`](https://github.com/HIllya51/LunaTranslator/blob/85c2234f34bab38def18e4f8f7c1e702e1344ade/src/LunaTranslator/textio/textsource/texthook.py)의 `initdll`은 `LunaHost32.dll` 또는 `LunaHost64.dll`을 로드하고 `Luna_Start`, `Luna_FindHooks`, `Luna_DetachProcess`, `Luna_QueryThreadHistory` 등을 ctypes로 바인딩한다. `ThreadParam`에는 `processId`, `addr`, `ctx`, `ctx2`가 있고 콜백은 `onnewhook`, `onremovehook`, `handle_output` 등으로 이어진다. 즉 후보/프로세스 정보를 갖는 내부 네이티브 경계는 실제로 존재하지만, 설치된 LunaTranslator를 밖에서 안전하게 제어하는 안정된 별도 프로세스 프로토콜로 검증된 것은 아니다. 이 DLL을 MIT 앱에서 직접 로드하는 방식은 단순 텍스트 수신과 다른 결합이며 별도 라이선스 및 배포 검토가 필요하다.
+
+### 실제 구현에 적용할 결론
+
+명시적 수동 클립보드 읽기 → 로컬 편집/확인 → 별도 번역 동의가 먼저 구현 가능한 범위다. 클립보드 읽기를 게임 프로세스 검증·후킹 연결 완료로 표시하면 안 된다. 합성 후보로 선택 UX를 시험할 경우 실제 게임 후보와 섞지 않고 시연임을 표시해야 한다. 이 문서 조사 자체는 수동 입력이나 합성 후보 UI의 구현 완료 증거가 아니며 실제 상태는 해당 코드·테스트·변경 이력으로 판단한다.
+
+통합 후보 선택 마법사에는 메타데이터를 보존하는 별도 프로토콜과 upstream 협의 또는 검토된 어댑터가 필요하다. 현재 확인된 텍스트 전용 출력만으로 프로세스 선택·후보 추천·해제 확인까지 구현했다고 주장하지 않는다. GPL 코드를 MIT로 재표기하지 않는 원칙은 유지한다. 고정 커밋의 [Textractor LICENSE](https://github.com/Artikash/Textractor/blob/df5b830d1757a66aa162f8081e99d42c9bd50488/LICENSE)와 [LunaTranslator LICENSE](https://github.com/HIllya51/LunaTranslator/blob/85c2234f34bab38def18e4f8f7c1e702e1344ade/LICENSE)도 GPL version 3 본문임을 재확인했다. 별도 프로그램의 일반 텍스트를 수신하는 설계와 GPL 호스트/DLL/전용 확장을 가져오는 설계를 구분하며, 실제 배포 조합에 대한 법적 결론은 내리지 않는다.

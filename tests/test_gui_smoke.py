@@ -30,3 +30,14 @@ class WidgetSmokeTests(unittest.TestCase):
         self.assertEqual(study.text.get('1.0','end-1c'),'こんにちは。')
         self.assertEqual(study.translation_text.get('1.0','end-1c'),'안녕하세요.')
         study.window.destroy();self.app.study_window=None
+
+    def test_explicit_input_window_constructs_without_capture(self):
+        self.app.open_input()
+        window=self.app.input_window
+        self.assertFalse(window.session.active)
+        window.preview_consent.set(True);window.begin()
+        self.assertEqual(len(window.session.candidates),3)
+        self.assertIsNone(window.session.selected)
+        window.close()
+        self.assertIsNone(self.app.input_window)
+        self.assertFalse(self.app.running)

@@ -1,3 +1,7 @@
+## 0.2 후속 입력/설치 안내 검증
+
+Linux Python 64개 중 61개 통과, 실제 Tk 표시 환경이 없는 GUI 3개는 제외. 추가 검사: 수동 원문 동의 누락/작업 중 전송 차단, 정확한 원문 1회 전송 목업, 중지 후 늦은 결과 폐기, 오류 자동 재시도 없음, 후보 세대/개수/이벤트/문자 한도, 무자동선택, 설치 안내 무네트워크/무프로세스. 실제 유료 API·외부 WebSocket·게임 주입은 호출하지 않았다. Windows CI 후속 결과는 해당 draft PR의 Actions에서 확인한다. 아래 설치본 해시는 이전 0.2 후보의 기록이다.
+
 ## 0.2 Windows CI 설치 후보 검증
 
 [실행 43420625994](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43420625994)에서 Windows Server 2025 x64 / Python 3.11.9 / Go 1.27.4로 Go 테스트, Python 45개(위젯 생성 2개 포함), PyInstaller 동결 앱 self-test, Inno Setup 설치본 생성, 설치 후 오프라인 데모 self-test와 제거가 모두 통과했다. 빌드 대상은 PR 가상 merge 2de08f2f48fc62c09a31b842c8a804cf974fed7c, 소스 head 53c028979010d30cd3e453a1786bf3009e83422c이다. 이후 변경은 문서뿐이다.
