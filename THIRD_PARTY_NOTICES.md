@@ -17,7 +17,7 @@
 
 DeepL은 외부 서비스이며 코드를 재배포하지 않는다. 사용자 자신의 API 계약/키가 필요하다. https://developers.deepl.com/ . 실제 API를 이번 개발에서 호출하지 않았다.
 
-Wiktionary는 사용자가 선택한 페이지를 외부 브라우저에서 여는 링크 연동이다. 본문이나 사전 데이터셋을 포함하지 않는다. Wikimedia의 CC BY-SA 4.0 정책과 항목별 라이선스/기여자 이력을 확인해야 하며, 향후 재사용 시 표시와 동일조건 공유 의무를 검토한다. https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+네이버 일본어사전은 사용자가 확인한 선택어를 외부 브라우저로 검색하는 링크 연동만 제공한다. 사전 내용의 권리는 네이버 및 각 제공처에 있으며 본 앱의 MIT 라이선스 대상이 아니다. 사전 본문·음성·데이터를 수집, 캐시, 번들 또는 재배포하지 않는다. https://ja.dict.naver.com/ (검색 동작은 합성 단어 猫로 확인).
 
 예제 일본어/한국어 3쌍은 이 프로젝트를 위해 작성한 합성 문장이다. 실제 게임 대사·화면·사용자 복습 데이터는 포함하지 않는다. 향후 사용자가 생성한 게임 기록의 권리는 해당 권리자에게 있다.
 
@@ -28,3 +28,7 @@ Wiktionary는 사용자가 선택한 페이지를 외부 브라우저에서 여�
 ## 선택 설치 llama.cpp CPU 엔진
 
 공식 b12359 Windows x64 CPU ZIP은 앱 실행 파일에 번들하지 않고 사용자 동의 후 선택 다운로드합니다. llama.cpp MIT 고지는 runtime_catalog.py에 보존하며 설치 시 LICENSE-llama.cpp.txt로 기록합니다. ZIP의 LICENSE-LLVM-OpenMP도 보존합니다. 출처: https://github.com/ggml-org/llama.cpp/releases/tag/b12359 . ZIP 및 52개 개별 파일 크기/SHA-256은 runtime_catalog.py에 고정했습니다. 이는 무결성 확인이며 Authenticode 서명이나 백신 통과 보장이 아닙니다.
+
+## Optional Textractor CLI (not bundled)
+
+The experimental standard-I/O client can invoke the user's separately installed official Textractor 5.2.0 CLI after explicit process selection and consent. Textractor is GPL v3; it is not relicensed by this project's MIT license. No Textractor code, DLL, executable or dictionary content is included in this source tree or app package. Any future combined distribution requires license/source obligations review. Official release, hashes, age, runtime requirements and security limitations: [HOOK_CLI.md](docs/HOOK_CLI.md).

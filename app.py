@@ -163,7 +163,9 @@ class App:
         ttk.Button(row, text='대화 지우기', command=self.clear).pack(side='left')
         ttk.Button(row, text='학습 / 기록', command=self.learn).pack(side='left', padx=6)
         ttk.Button(row,text='API 키 지우기',command=self.forget_key).pack(side='left')
-        ttk.Button(panel,text='외부 원문 붙여넣기 / 후보 선택 체험',command=self.open_input).pack(anchor='w')
+        input_row=ttk.Frame(panel);input_row.pack(fill='x')
+        ttk.Button(input_row,text='외부 원문 붙여넣기 / 후보 선택 체험',command=self.open_input).pack(side='left')
+        ttk.Button(input_row,text='실험: Textractor 후킹 입력',command=self.open_hook).pack(side='left',padx=8)
         self.status = tk.StringVar(value='준비 · 세션 최대 100회 / 10,000자 · 최소 호출 간격 3초')
         ttk.Label(panel, textvariable=self.status, wraplength=650).pack(anchor='w', pady=8)
         self.output = tk.Text(panel, height=9, wrap='word', font=('', 16), bg='#17212d', fg='#f3f6fa')
@@ -279,6 +281,15 @@ class App:
             self.status.set('자막 위치를 화면 안으로 복구·저장했습니다. 배경은 85%이며 번역은 정지 상태입니다.')
         except Exception as exc:
             self.status.set(str(exc) if isinstance(exc,ReaderError) else '자막 위치 복구 실패. 모니터와 폴더 권한을 확인하세요.')
+
+    def open_hook(self):
+        self.pause()
+        if self.busy:
+            self.status.set('진행 중 작업이 끝난 뒤 입력 창을 열어 주세요.');return
+        if self.input_window:
+            self.input_window.window.lift();return
+        from hook_ui import HookWindow
+        self.input_window=HookWindow(self)
 
     def open_input(self):
         self.pause()
@@ -729,6 +740,7 @@ class App:
 
     def close(self):
         self.pause()
+        if self.input_window:self.input_window.close()
         for editor in [getattr(self,'region_editor',None),getattr(self,'placement_editor',None)]:
             try:
                 if editor:editor.cancel()

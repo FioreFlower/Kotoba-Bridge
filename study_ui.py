@@ -192,7 +192,7 @@ class StudyWindow:
             ttk.Button(row, text=name, command=command).pack(side='left', padx=3)
         self.status = tk.StringVar(value='기록은 메모리에만 있습니다. 다음 실행에서 복습하려면 JSON으로 내보내세요.')
         ttk.Label(self.window, textvariable=self.status, wraplength=790).pack(anchor='w', padx=8, pady=6)
-        ttk.Label(self.window, text='사전은 별도 확인 후 일본어 Wiktionary를 브라우저에서 엽니다. 내장 사전·자동 독음·뜻 생성은 없습니다.\n원형이나 상용구가 아닌 선택에는 항목이 없을 수 있습니다. 내보낸 파일은 평문이며 별도 삭제해야 합니다.', wraplength=790).pack(anchor='w', padx=8, pady=4)
+        ttk.Label(self.window, text='사전은 별도 확인 후 네이버 일본어사전를 브라우저에서 엽니다. 내장 사전·자동 독음·뜻 생성은 없습니다.\n원형이나 상용구가 아닌 선택에는 항목이 없을 수 있습니다. 내보낸 파일은 평문이며 별도 삭제해야 합니다.', wraplength=790).pack(anchor='w', padx=8, pady=4)
         self.current = None
         self.refresh()
 
@@ -246,7 +246,7 @@ class StudyWindow:
     def lookup(self):
         try:
             term = self.selected(); url = dictionary_url(term)
-            if messagebox.askyesno('사전 외부 전송', f'선택 텍스트 «{term}»를 일본어 Wiktionary URL로 전송하고 브라우저에 남깁니다. 열까요?', parent=self.window):
+            if messagebox.askyesno('사전 외부 전송', f'선택 텍스트 «{term}»를 네이버 일본어사전에 검색어로 전송합니다. 브라우저 방문 기록과 네이버의 처리 대상이 될 수 있습니다. 열까요?', parent=self.window):
                 if not webbrowser.open(url):
                     self.status.set('브라우저를 열지 못했습니다. 기본 브라우저 설정을 확인하세요.')
         except ValueError as exc:

@@ -16,7 +16,7 @@ def dictionary_url(term):
     term = term.strip()
     if not term or len(term) > 100:
         raise ValueError('사전 검색어는 1~100자로 선택하세요.')
-    return 'https://ja.wiktionary.org/wiki/' + quote(term, safe='')
+    return 'https://ja.dict.naver.com/#/search?query=' + quote(term, safe='')
 
 
 def validate_text(value, field):

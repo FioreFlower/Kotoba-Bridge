@@ -25,8 +25,12 @@ class StudyTests(unittest.TestCase):
         self.assertEqual(len(a.history),500)
     def test_url_escapes(self):
         u=dictionary_url('猫/#?')
-        self.assertEqual(u,'https://ja.wiktionary.org/wiki/%E7%8C%AB%2F%23%3F')
+        self.assertEqual(u,'https://ja.dict.naver.com/#/search?query=%E7%8C%AB%2F%23%3F')
         with self.assertRaises(ValueError):dictionary_url('x'*101)
+        from urllib.parse import urlsplit, parse_qs
+        term='猫 & 犬/#?=+ 雨の日'
+        fragment=urlsplit(dictionary_url(term)).fragment
+        self.assertEqual(parse_qs(fragment.split('?',1)[1]), {'query':[term]})
 
 class StudyValidationTests(unittest.TestCase):
     def test_invalid_documents_preserve_cards(self):
