@@ -10,13 +10,13 @@ class StudyTests(unittest.TestCase):
         self.assertEqual(len(a.cards),1)
         with tempfile.TemporaryDirectory() as folder:
             p=Path(folder)/'cards.json';a.export(p)
-            self.assertNotIn('history',p.read_text())
+            self.assertNotIn('history',p.read_text(encoding='utf-8'))
             b=StudyStore();b.load(p);self.assertEqual(a.cards,b.cards)
             b.cards.clear();self.assertTrue(p.exists())
     def test_invalid_import_is_atomic(self):
         a=StudyStore();a.save('猫','猫','고양이')
         with tempfile.TemporaryDirectory() as folder:
-            p=Path(folder)/'bad.json';p.write_text('{"version":1,"cards":[{"term":5}]}')
+            p=Path(folder)/'bad.json';p.write_text('{"version":1,"cards":[{"term":5}]}', encoding='utf-8')
             with self.assertRaises(ValueError):a.load(p)
             self.assertEqual(a.cards[0]['term'],'猫')
     def test_history_bound(self):

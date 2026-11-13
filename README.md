@@ -6,8 +6,14 @@ Windows 우선 Go 코어 + Python/Tk 네이티브 데스크톱 UI 소스 MVP. �
 
 ## 빠른 실행 (Windows 10/11, Python 3.11 권장)
 
-1. 이 ZIP을 일반 사용자 폴더에 풉니다. Python의 tkinter가 포함된 공식 Windows 설치본을 사용합니다.
-2. 개발 소스 실행에는 Go 코어도 필요합니다. ZIP에 포함된 `kotoba-core.exe`는 Linux에서 Windows x64로 교차 빌드한 미서명/실기 미검증 코어입니다. 배포 전 검증이 필요합니다. 직접 빌드하려면 Go 설치 후 `cd go-core; go build -o ../kotoba-core.exe .`를 실행하고 상위 폴더로 돌아옵니다. 최종 설치본에는 코어가 동봉되므로 사용자가 Go를 설치하는 설계는 아닙니다.
+1. GitHub 저장소를 clone하거나 소스 ZIP을 일반 사용자 폴더에 풉니다. Python의 tkinter가 포함된 공식 Windows 설치본을 사용합니다.
+2. **GitHub 소스 ZIP에는 `kotoba-core.exe`가 없습니다.** Go를 설치하고 아래 명령으로 코어를 빌드합니다. 별도로 전달된 Library 개발 번들에는 Linux에서 교차 빌드한 미서명 Windows x64 코어가 있으나 Windows 실기 미검증입니다. 정식 설치본은 아직 제공하지 않으며, 향후 설치본에는 코어를 동봉할 계획입니다.
+
+```powershell
+cd go-core
+go build -o ../kotoba-core.exe .
+cd ..
+```
 3. PowerShell에서 이 폴더로 이동한 뒤 실행합니다.
 
 ```powershell
@@ -60,7 +66,7 @@ OCR/API 오류는 자동 정지합니다. 원인을 고친 뒤 재개합니다. 
 
 테스트는 가짜 HTTP transport와 번역기를 사용하며 **실제 유료 API를 호출하지 않습니다**. 결과·플랫폼별 검증 범위는 TEST_REPORT.md, 기획과 기술 비교는 DESIGN.md, Windows 인수 절차는 WINDOWS_CHECKLIST.md에 있습니다.
 
-실행 바이너리·설치 프로그램·서명된 MSIX는 포함하지 않았습니다. 이것은 설치 단계가 있는 소스 배포 MVP이며, Windows에서 검증된 완성 제품으로 표현하지 않습니다.
+GitHub 소스에는 실행 바이너리·설치 프로그램·서명된 MSIX가 포함되지 않습니다. 별도 Library 개발 번들의 교차 빌드 코어도 설치 프로그램은 아닙니다. 이것은 설치 단계가 있는 소스 배포 MVP이며, Windows에서 검증된 완성 제품으로 표현하지 않습니다.
 
 ## 플레이와 학습 모드
 
@@ -78,4 +84,4 @@ OCR/API 오류는 자동 정지합니다. 원인을 고친 뒤 재개합니다. 
 
 ## 오픈소스
 
-프로젝트 소스는 MIT입니다. 기여 절차는 CONTRIBUTING.md, 행동 강령은 CODE_OF_CONDUCT.md, 취약점 보고는 SECURITY.md, 타사 라이선스와 데이터 출처는 THIRD_PARTY_NOTICES.md에 있습니다. 자동화 테스트 workflow는 준비했지만 GitHub에서 실행한 결과는 아닙니다.
+프로젝트 소스는 MIT입니다. 기여 절차는 CONTRIBUTING.md, 행동 강령은 CODE_OF_CONDUCT.md, 취약점 보고는 SECURITY.md, 타사 라이선스와 데이터 출처는 THIRD_PARTY_NOTICES.md에 있습니다. GitHub Actions 실행 결과는 TEST_REPORT.md와 저장소의 Actions 탭에서 확인하세요. CI 통과와 Windows GUI/게임 실기 검증은 별개입니다.

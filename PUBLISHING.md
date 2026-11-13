@@ -1,19 +1,13 @@
-# 공개 저장소 준비와 현재 차단 요인
+# 공개 저장소와 Git 이력
 
-사용자가 공개 오픈소스 저장소 생성·push를 승인했다. 프로젝트 전용 로컬 Git 저장소를 생성하고 MIT 및 공개 협업 문서를 준비했다.
+공개 저장소: https://github.com/FioreFlower/Kotoba-Bridge
 
-현재 환경 `gh auth status` 결과: **You are not logged into any GitHub hosts.** 연결된 GitHub 도구도 없어서 실제 계정·생성 권한을 검증할 수 없다. 원격 저장소 생성이나 push는 실행하지 않았고 원격 URL을 만들거나 성공했다고 주장하지 않는다. 인증을 우회하거나 다른 계정을 사용하지 않는다.
+2026-11-13 GitHub 웹 UI에서 `FioreFlower` 소유의 공개 저장소를 생성한 뒤 연결된 GitHub 앱을 통해 소스 39개를 게시했다. 최초 원격 커밋은 `f6f8b3abffb43ddc37bcf19dd9204cf8740c5d97`이다.
 
-인증된 개발 환경에서 공개 범위를 다시 확인한 뒤 다음처럼 게시할 수 있다(실행 예, 이번 작업에서 미실행):
+최초 로컬 커밋 `b4ac88dfa883d66af348351ceb5747b6dabada07`과 원격 커밋은 이력이 다르다. 두 커밋의 파일 트리 SHA는 `05dbf3423c260b292289a37038baa062615ffc95`로 동일함을 fetch 후 확인했다. 기존 개발 저장소를 원격에 force push하거나 unrelated histories merge하지 않는다. 이후 작업은 원격 main을 clone하거나 원격 커밋에서 새 브랜치/worktree를 만들어 진행한다.
 
-```text
-gh auth login
-gh repo create kotoba-bridge --public --source=. --remote=origin --push
-gh repo view --json nameWithOwner,url,visibility
-```
+CLI OAuth는 비공개 저장소·Gist 등 추가 계정 권한을 요청하여 승인하지 않고 취소했다. 게시에는 이미 연결된 GitHub 앱을 사용했으며, CLI 인증이 성공했다는 뜻은 아니다. 비밀번호/토큰을 문서·저장소에 보관하지 않는다.
 
-이름이 이미 사용 중이면 새 이름을 지정하고, 기존 저장소를 덮어쓰지 않는다. GitHub 계정 연결/로그인은 사용자가 수행해야 한다. 결제나 유료 서비스 가입은 필요하지 않으며 이번 작업에서 진행하지 않았다.
+공개 소스는 `git ls-files` 목록으로 제한했다. 가상환경, toolchain/cache, 바이너리, ZIP, Git bundle, 환경/키 파일, 개인 복습 JSON은 제외했다. 예제 문장과 dummy key는 합성 테스트 데이터이며 실제 게임 화면/대사를 포함하지 않는다. 실제 공개 commit metadata의 작성자 정보는 GitHub 계정 설정을 따른다.
 
-공개 소스는 `git ls-files` 목록으로 제한된다. `.venv`, toolchain/cache, exe, ZIP, Git bundle, 환경 파일, 키 파일, 사용자가 내보낸 카드 파일은 제외한다. 예제 번역과 오류 테스트의 dummy key 문자열은 실제 인증 정보가 아니다. 이슈에도 실제 화면/키/대사를 올리지 않는다.
-
-최종 사용자용 설치파일은 별도의 Windows 검증·서명 후 GitHub Releases 등에 게시한다. 현재 교차 빌드 코어 exe를 전체 설치본으로 배포하지 않는다.
+최종 사용자용 설치파일은 별도의 Windows 검증·서명 후 Releases 등에 게시한다. 현재 교차 빌드 코어 exe는 전체 설치본이 아니다. GitHub CI의 Windows runner는 실제 게임·GUI·OCR·installer 검증을 대체하지 않는다.
