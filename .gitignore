@@ -25,3 +25,7 @@ study-cards*.json
 *.dpapi
 .credential-*
 data/
+
+*.gguf
+.model-*
+!docs/evaluation/qwen25-1.5b-linux.json

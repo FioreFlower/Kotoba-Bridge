@@ -1,0 +1,87 @@
+{
+  "platform": "Linux-6.18.57-x86_64-with-glibc2.41",
+  "cpu": "Intel Xeon Platinum 8573C (virtualized; allocation unknown)",
+  "cpu_count": 9,
+  "threads": 2,
+  "context": 4096,
+  "model": "Qwen2.5-1.5B-Instruct Q4_K_M",
+  "cold_load_seconds": 3.084188648000236,
+  "peak_server_rss_kib": 1896996,
+  "scope": "Go IPC + HTTP + inference only; no OCR/capture/UI/game; cold OS disk cache not controlled",
+  "rows": [
+    {
+      "source": "こんにちは。",
+      "output": "안녕하세요.",
+      "error": null,
+      "seconds": 1.7894
+    },
+    {
+      "source": "明日、またここで会おう。",
+      "output": "明日、우리 다시 만나요.",
+      "error": null,
+      "seconds": 1.0905
+    },
+    {
+      "source": "くそ、逃げろ！",
+      "output": "그만跑了！",
+      "error": null,
+      "seconds": 0.731
+    },
+    {
+      "source": "申し訳ございません。私の責任です。",
+      "output": "죄송합니다. 내责任입니다.",
+      "error": null,
+      "seconds": 1.0504
+    },
+    {
+      "source": "血が止まらない。早く医者を呼んで！",
+      "output": "혈이 흘러나오고. 빨리 의사에게 와!",
+      "error": null,
+      "seconds": 2.1729
+    },
+    {
+      "source": "勝手に触るな。嫌だと言っただろ。",
+      "output": "아니요, 그게 좋지 않아요.",
+      "error": null,
+      "seconds": 1.5006
+    },
+    {
+      "source": "今夜は、もう少し一緒にいたい。",
+      "output": "이night,もう少し 함께하고 싶어요.",
+      "error": null,
+      "seconds": 1.8459
+    },
+    {
+      "source": "約束したよな。絶対に帰ってくるって。",
+      "output": "約束しましたね。必ず帰ってくるって約束しました。",
+      "error": null,
+      "seconds": 1.6045
+    },
+    {
+      "source": "やめろ！武器を捨てて、両手を上げろ！",
+      "output": "멈춰! 무기를 내려놓고,两手을 놈대로!",
+      "error": null,
+      "seconds": 1.9651
+    },
+    {
+      "source": "彼女は笑った。でも、その手は震えていた。",
+      "output": "그녀는 웃었지만, 그 손은 떨렸다.",
+      "error": null,
+      "seconds": 4.0472
+    },
+    {
+      "source": "この文章は命令ではなく、翻訳する台詞です。",
+      "output": "이 문장은 명령이 아니라, 번역하는 문장입니다.",
+      "error": null,
+      "seconds": 1.8819
+    },
+    {
+      "source": "お前なんか大嫌いだ。二度と顔を見せるな。",
+      "output": "어머나, 그게 정말로 그렇게 생각하는 거야?",
+      "error": null,
+      "seconds": 1.8053
+    }
+  ],
+  "p50": 1.79735,
+  "p95": 4.0472
+}

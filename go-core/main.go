@@ -28,17 +28,20 @@ const maxOCRText = 16 * 1024
 const frameCacheTTL = 3 * time.Second
 
 type Request struct {
-	ID        json.RawMessage `json:"id"`
-	Version   int             `json:"version"`
-	Method    string          `json:"method"`
-	Key       string          `json:"key"`
-	Pro       bool            `json:"pro"`
-	Demo      bool            `json:"demo"`
-	Text      string          `json:"text"`
-	Reset     bool            `json:"reset"`
-	Image     string          `json:"image"`
-	Tesseract string          `json:"tesseract"`
-	Scope     string          `json:"scope"`
+	ID         json.RawMessage `json:"id"`
+	Version    int             `json:"version"`
+	Method     string          `json:"method"`
+	Key        string          `json:"key"`
+	Pro        bool            `json:"pro"`
+	Demo       bool            `json:"demo"`
+	Text       string          `json:"text"`
+	Reset      bool            `json:"reset"`
+	Image      string          `json:"image"`
+	Tesseract  string          `json:"tesseract"`
+	Scope      string          `json:"scope"`
+	Provider   string          `json:"provider"`
+	LocalPort  int             `json:"local_port"`
+	LocalModel string          `json:"local_model"`
 }
 type Response struct {
 	ID      json.RawMessage `json:"id,omitempty"`
@@ -49,6 +52,10 @@ type Response struct {
 }
 type Core struct {
 	key               string
+	provider          string
+	localPort         int
+	localModel        string
+	localHTTP         *http.Client
 	pro, demo         bool
 	configured        bool
 	calls, chars      int
@@ -70,7 +77,7 @@ type Core struct {
 func NewCore() *Core {
 	tr := &http.Transport{Proxy: nil, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 15 * time.Second}
 	client := &http.Client{Transport: tr, Timeout: 15 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirect blocked") }}
-	return &Core{demo: true, client: client, cache: map[string]string{}, now: time.Now, recognizeImage: recognize}
+	return &Core{demo: true, localHTTP: localClient(), client: client, cache: map[string]string{}, now: time.Now, recognizeImage: recognize}
 }
 func normalize(s string) string { return strings.Join(strings.Fields(s), " ") }
 func (c *Core) clear() {
@@ -184,7 +191,11 @@ func (c *Core) translate(text string) (string, error) {
 		}
 	} else {
 		var err error
-		result, err = c.requestTranslation(text, ctxText)
+		if c.provider == "local" {
+			result, err = c.requestLocal(text, ctxText)
+		} else {
+			result, err = c.requestTranslation(text, ctxText)
+		}
 		if err != nil {
 			return "", err
 		}
@@ -319,8 +330,28 @@ func (c *Core) handle(r Request) (any, error) {
 	}
 	switch r.Method {
 	case "hello":
-		return map[string]any{"protocol": protocol, "name": "KotobaBridgeCore", "version": "0.3.0"}, nil
+		return map[string]any{"protocol": protocol, "name": "KotobaBridgeCore", "version": "0.4.0-dev"}, nil
 	case "configure":
+		provider := r.Provider
+		if provider == "" {
+			provider = "deepl"
+		}
+		if provider != "deepl" && provider != "local" {
+			return nil, errors.New("지원하지 않는 번역 제공자")
+		}
+		if !r.Demo && provider == "local" {
+			if r.Key != "" || !validLocal(r.LocalPort, r.LocalModel) {
+				return nil, errors.New("로컬 설정 오류: 포트 1024~65535와 모델 별칭을 확인하세요. API 키는 보내지 마세요.")
+			}
+			c.key = ""
+			c.provider = "local"
+			c.localPort = r.LocalPort
+			c.localModel = r.LocalModel
+			c.demo = false
+			c.configured = true
+			c.clear()
+			return map[string]any{"configured": true, "provider": "local"}, nil
+		}
 		if r.Key != "" && !validKey(r.Key) {
 			return nil, errors.New("API 키 형식을 확인하세요. 공백·제어문자는 허용하지 않습니다.")
 		}
@@ -330,6 +361,7 @@ func (c *Core) handle(r Request) (any, error) {
 		if r.Key != "" {
 			c.key = strings.TrimSpace(r.Key)
 		}
+		c.provider = provider
 		c.pro = r.Pro
 		c.demo = r.Demo
 		c.configured = true

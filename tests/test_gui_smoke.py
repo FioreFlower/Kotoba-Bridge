@@ -62,3 +62,11 @@ class WidgetSmokeTests(unittest.TestCase):
             self.assertTrue(sub.mode(False))
         sub.restore();self.assertEqual(sub.background_opacity,85)
         self.assertEqual(float(sub.window.attributes('-alpha')),1.0)
+
+    def test_local_model_setup_never_downloads_implicitly(self):
+        with patch('local_ui.install_model') as download:
+            self.app.open_local();window=self.app.local_window
+            self.assertFalse(window.accept.get());window.model_id.set('qwen3-4b')
+            self.assertIn('2,497,280,256',window.details.get())
+            self.assertFalse(window.accept.get());download.assert_not_called()
+            window.close();self.assertIsNone(self.app.local_window)

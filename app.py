@@ -101,6 +101,9 @@ class App:
         self.setup_window = None
         self.restore_after_job = False
         self.stable = StableText()
+        self.provider=tk.StringVar(value='DeepL')
+        self.local_port=tk.StringVar(value='8087');self.local_model=tk.StringVar(value='kotoba-local')
+        self.local_consent=tk.BooleanVar(value=False);self.local_window=None
         self.demo = tk.BooleanVar(value=True)
         self.pro = tk.BooleanVar(value=False)
         self.consent = tk.BooleanVar(value=False)
@@ -111,6 +114,10 @@ class App:
         onboarding=ttk.Frame(panel);onboarding.pack(fill='x',pady=4)
         for label,command in [('① 초기 설정',self.open_setup),('② 마우스로 영역 선택',self.pick_region),('③ 로컬 OCR 미리보기',self.preview)]:
             ttk.Button(onboarding,text=label,command=command).pack(side='left',padx=3)
+        provider_row=ttk.Frame(panel);provider_row.pack(fill='x')
+        ttk.Label(provider_row,text='번역 제공자').pack(side='left')
+        ttk.Combobox(provider_row,textvariable=self.provider,values=['DeepL','로컬 llama.cpp'],state='readonly',width=20).pack(side='left',padx=6)
+        ttk.Button(provider_row,text='로컬 모델 / 연결 설정',command=self.open_local).pack(side='left')
         ttk.Checkbutton(panel, text='오프라인 데모 (화면·API 사용 안 함)', variable=self.demo).pack(anchor='w')
         row = ttk.Frame(panel); row.pack(fill='x', pady=8)
         self.coords = []
@@ -156,7 +163,9 @@ class App:
         ttk.Button(overlay_row,text='배경 설정 저장',command=self.save_overlay).pack(side='left',padx=6)
         ttk.Button(overlay_row,text='자막 표시 / 위치·배경 복구',command=self.restore_overlay).pack(side='left')
         self.change_opacity(initial_opacity)
-        self.consent.trace_add('write',lambda *_:self.pause() if not self.consent.get() and (self.running or self.busy) else None)
+        self.consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
+        self.local_consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
+        for option in [self.provider,self.local_port,self.local_model]:option.trace_add('write',self.provider_changed)
         try:
             self.credentials_blocked=remove_legacy_keys(settings_path())
             if self.credentials_blocked:
@@ -177,6 +186,22 @@ class App:
         except (ReaderError,OSError):
             self.status.set('저장된 설정을 읽지 못했습니다. 초기 설정에서 다시 저장하거나 삭제하세요.')
         root.after(100, self.poll)
+
+    def is_local(self):
+        return hasattr(self,'provider') and self.provider.get()=='로컬 llama.cpp'
+
+    def transfer_allowed(self):
+        return self.local_consent.get() if self.is_local() else self.consent.get()
+
+    def provider_changed(self,*_):
+        self.pause();self.mode=None;self.translator=None
+        self.status.set('제공자/설정 변경으로 정지했습니다. 선택한 대상의 전송 동의 후 시작하세요. 자동 전환 없음.')
+
+    def open_local(self):
+        self.pause()
+        if self.local_window:self.local_window.window.lift();return
+        from local_ui import LocalWindow
+        self.local_window=LocalWindow(self)
 
     def change_opacity(self,value):
         supported=self.subtitle.set_background_opacity(value)
@@ -205,7 +230,7 @@ class App:
         from input_sources import source_text
         text=source_text(text)
         if self.busy:raise ReaderError('진행 중 작업이 끝난 뒤 다시 눌러 주세요.')
-        if not self.consent.get():raise ReaderError('메인 화면의 외부 전송 동의가 필요합니다.')
+        if not self.transfer_allowed():raise ReaderError('선택한 제공자의 전송 동의가 필요합니다.')
         self.pause()
         if self.bridge is None:self.bridge=GoBridge()
         self.configure_credentials(False,self.pro.get())
@@ -385,6 +410,12 @@ class App:
         if demo:
             # Demo must never decrypt, send, or consume a typed key.
             self.bridge.call('configure',key='',pro=pro,demo=True);return
+        if self.is_local():
+            if not self.local_consent.get():raise ReaderError('로컬 서버 전송 동의가 필요합니다.')
+            try:port=int(self.local_port.get())
+            except ValueError:raise ReaderError('로컬 포트는 숫자여야 합니다.') from None
+            self.bridge.call('configure',provider='local',local_port=port,local_model=self.local_model.get(),key='',demo=False)
+            return
         if getattr(self,'credentials_blocked',False):
             raise ReaderError('저장 키/기존 설정 확인이 필요합니다. 새 키를 암호화 저장하거나 API 키 지우기를 누르세요.')
         key=self.key.get().strip()
@@ -454,7 +485,7 @@ class App:
             return
         try:
             mode = (self.demo.get(), self.pro.get())
-            if not mode[0] and not self.consent.get():
+            if not mode[0] and not self.transfer_allowed():
                 raise ReaderError('외부 전송 동의가 필요합니다.')
             region = self.current_region()
             if not mode[0]:
@@ -573,7 +604,7 @@ class App:
             subtitle_region = Region(self.subtitle.window.winfo_rootx(), self.subtitle.window.winfo_rooty(), max(20,self.subtitle.window.winfo_width()), max(20,self.subtitle.window.winfo_height()))
             if not self.mode[0] and ((self.root.state() != 'iconic' and self.region.overlaps(window)) or (self.subtitle.window.state() != 'withdrawn' and self.region.overlaps(subtitle_region))):
                 self.pause(); self.status.set('캡처 영역과 자막 창이 겹칩니다. 창을 옮긴 후 재개하세요.')
-            elif not self.mode[0] and not self.consent.get():
+            elif not self.mode[0] and not self.transfer_allowed():
                 self.pause(); self.status.set('전송 동의 해제로 정지했습니다.')
             else:
                 self.busy = True
@@ -582,13 +613,14 @@ class App:
 
     def close(self):
         self.pause()
+        if getattr(self,'local_window',None):self.local_window.close()
         if self.bridge: self.bridge.close()
         self.root.destroy()
 
 if __name__ == '__main__':
     import argparse
     parser=argparse.ArgumentParser()
-    parser.add_argument('--self-test',action='store_true');parser.add_argument('--report');parser.add_argument('--require-ocr',action='store_true')
+    parser.add_argument('--manage-models',action='store_true');parser.add_argument('--self-test',action='store_true');parser.add_argument('--report');parser.add_argument('--require-ocr',action='store_true')
     args=parser.parse_args()
     if args.self_test:
         from selftest import run
@@ -596,4 +628,6 @@ if __name__ == '__main__':
     if sys.platform == 'win32':
         try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception: pass
-    App(tk.Tk()).root.mainloop()
+    app=App(tk.Tk())
+    if args.manage_models:app.open_local()
+    app.root.mainloop()
