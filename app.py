@@ -389,7 +389,7 @@ class App:
             raise ReaderError('저장 키/기존 설정 확인이 필요합니다. 새 키를 암호화 저장하거나 API 키 지우기를 누르세요.')
         key=self.key.get().strip()
         if key:key=valid_key(key)
-        else:
+        elif getattr(self,'mode',None)!=(False,pro) or getattr(self,'translator',None) is None:
             saved=self.key_store.load()
             if saved:
                 key,saved_pro=saved

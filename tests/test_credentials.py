@@ -127,3 +127,9 @@ class CredentialFlowTests(unittest.TestCase):
         with patch('app.remove_legacy_keys',return_value=False):a.save_key()
         self.assertIs(a.bridge,original);original.close.assert_called_once()
         self.assertIn('재실행',a.status.set.call_args.args[0])
+
+    def test_existing_live_provider_reuses_key_without_decrypt_or_ipc_secret(self):
+        a=self.app();a.mode=(False,False);a.translator=Mock()
+        a.configure_credentials(False,False)
+        a.key_store.load.assert_not_called()
+        a.bridge.call.assert_called_once_with('configure',key='',pro=False,demo=False)
