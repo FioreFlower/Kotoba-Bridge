@@ -1,8 +1,10 @@
-; Windows x64 candidate installer recipe. Not compiled or tested in this delivery.
+; Unsigned development candidate. Tesseract is NOT included in the default package.
 [Setup]
 AppId=KotobaBridgePrototype
 AppName=Kotoba Bridge
-AppVersion=0.1.0
+AppVersion=0.2.0
+AppPublisher=Kotoba Bridge contributors
+AppPublisherURL=https://github.com/FioreFlower/Kotoba-Bridge
 DefaultDirName={localappdata}\Programs\KotobaBridge
 DefaultGroupName=Kotoba Bridge
 PrivilegesRequired=lowest
@@ -14,10 +16,18 @@ OutputBaseFilename=KotobaBridge-Setup-x64
 Compression=lzma2
 SolidCompression=yes
 UninstallDisplayIcon={app}\KotobaBridge.exe
+LicenseFile=..\LICENSE
+InfoAfterFile=installer-notice.txt
+WizardStyle=modern
+CloseApplications=yes
+RestartApplications=no
 [Files]
 Source: "..\dist\KotobaBridge\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 [Icons]
 Name: "{group}\Kotoba Bridge"; Filename: "{app}\KotobaBridge.exe"
-Name: "{group}\사용 안내"; Filename: "{app}\README.md"
+Name: "{group}\Installation guide"; Filename: "{app}\INSTALLATION.md"
+Name: "{group}\Uninstall Kotoba Bridge"; Filename: "{uninstallexe}"
 [Run]
-Filename: "{app}\KotobaBridge.exe"; Description: "Launch offline demo"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\KotobaBridge.exe"; Description: "Launch Kotoba Bridge (offline demo by default)"; Flags: nowait postinstall skipifsilent unchecked
+; Intentionally no broad UninstallDelete rules: exported cards/settings outside {app}
+; belong to the user and are not removed by app uninstall.

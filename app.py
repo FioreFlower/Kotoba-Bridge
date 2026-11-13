@@ -9,8 +9,10 @@ import sys
 import threading
 import time
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 from bridge import GoBridge, GoTranslator, GoStable
+from onboarding import find_tesseract, inspect_engine, load_settings, save_settings, settings_path
+from setup_ui import RegionPicker
 from study import StudyStore
 from study_ui import Subtitle, StudyWindow
 from core import Region, ReaderError, StableText, normalize
@@ -28,17 +30,15 @@ def capture_region(region):
     return base64.b64encode(buffer.getvalue()).decode('ascii')
 
 
-def ocr_region(region, bridge=None):
+def ocr_region(region, bridge=None, preferred=''):
     if bridge is None:
         raise ReaderError('OCR 코어 연결이 없습니다.')
-    executable=os.environ.get('TESSERACT_CMD')
-    if not executable and getattr(sys, 'frozen', False):
-        executable=os.path.join(os.path.dirname(sys.executable), 'ocr', 'tesseract.exe')
+    executable=find_tesseract(preferred)
     if not executable:
-        executable=shutil.which('tesseract')
-    if not executable or not os.path.isfile(executable):
-        raise ReaderError('Tesseract 실행파일 경로를 확인하세요.')
-    return bridge.call('ocr', image=capture_region(region), tesseract=os.path.abspath(executable))['text']
+        raise ReaderError('Tesseract를 찾지 못했습니다. 초기 설정에서 실행파일을 선택하세요.')
+    scope=','.join(str(v) for v in (region.left,region.top,region.width,region.height))
+    return bridge.call('ocr', image=capture_region(region), tesseract=executable, scope=scope)['text']
+
 
 
 def target_window(region):
@@ -75,7 +75,8 @@ class App:
     def __init__(self, root):
         self.root = root
         root.title('Kotoba Bridge · 일본어 → 한국어')
-        root.geometry('700x570+30+30')
+        root.geometry('760x660+30+30')
+        root.minsize(700,570)
         root.attributes('-topmost', False)
         self.study=StudyStore()
         self.study_window=None
@@ -88,6 +89,11 @@ class App:
         self.stop_event = threading.Event()
         self.translator = None
         self.bridge = None
+        self.engine = tk.StringVar(value=find_tesseract())
+        self.engine_verified = ''
+        self.monitor_index = tk.IntVar(value=0)
+        self.setup_window = None
+        self.restore_after_job = False
         self.stable = StableText()
         self.demo = tk.BooleanVar(value=True)
         self.pro = tk.BooleanVar(value=False)
@@ -95,7 +101,10 @@ class App:
         panel = ttk.Frame(root, padding=16)
         panel.pack(fill='both', expand=True)
         ttk.Label(panel, text='Kotoba Bridge', font=('', 20, 'bold')).pack(anchor='w')
-        ttk.Label(panel, text='창 모드 게임의 대사 영역을 지정하면 한국어 자막을 자동 갱신합니다.').pack(anchor='w', pady=6)
+        ttk.Label(panel, text='처음에는 오프라인 데모로 확인하세요. 실제 게임은 ① 설정 → ② 영역 → ③ OCR 미리보기 순서입니다.').pack(anchor='w', pady=6)
+        onboarding=ttk.Frame(panel);onboarding.pack(fill='x',pady=4)
+        for label,command in [('① 초기 설정',self.open_setup),('② 마우스로 영역 선택',self.pick_region),('③ 로컬 OCR 미리보기',self.preview)]:
+            ttk.Button(onboarding,text=label,command=command).pack(side='left',padx=3)
         ttk.Checkbutton(panel, text='오프라인 데모 (화면·API 사용 안 함)', variable=self.demo).pack(anchor='w')
         row = ttk.Frame(panel); row.pack(fill='x', pady=8)
         self.coords = []
@@ -115,6 +124,7 @@ class App:
         ttk.Button(row, text='정지 (Esc)', command=self.pause).pack(side='left', padx=6)
         ttk.Button(row, text='대화 지우기', command=self.clear).pack(side='left')
         ttk.Button(row, text='학습 / 기록', command=self.learn).pack(side='left', padx=6)
+        ttk.Button(row,text='API 키 지우기',command=self.forget_key).pack(side='left')
         self.status = tk.StringVar(value='준비 · 세션 최대 100회 / 10,000자 · 최소 호출 간격 3초')
         ttk.Label(panel, textvariable=self.status, wraplength=650).pack(anchor='w', pady=8)
         self.output = tk.Text(panel, height=9, wrap='word', font=('', 16), bg='#17212d', fg='#f3f6fa')
@@ -123,7 +133,141 @@ class App:
         root.bind('<Escape>', lambda _: self.pause())
         root.protocol('WM_DELETE_WINDOW', self.close)
         self.mode = None
+        self.consent.trace_add('write',lambda *_:self.pause() if not self.consent.get() and self.running else None)
+        try:
+            saved=load_settings(settings_path())
+            if saved:
+                region,engine=saved
+                self.set_region(region);self.engine.set(engine)
+                self.status.set('저장한 영역/엔진 설정을 읽었습니다. 키·전송 동의는 저장하지 않습니다.')
+        except (ReaderError,OSError):
+            self.status.set('저장된 설정을 읽지 못했습니다. 초기 설정에서 다시 저장하거나 삭제하세요.')
         root.after(100, self.poll)
+
+    def local_output(self,value):
+        self.output.configure(state='normal');self.output.delete('1.0','end')
+        self.output.insert('end',value);self.output.configure(state='disabled')
+
+    def set_region(self,region):
+        for entry,value in zip(self.coords,(region.left,region.top,region.width,region.height)):
+            entry.delete(0,'end');entry.insert(0,str(value))
+
+    def current_region(self):
+        return Region(*(int(e.get()) for e in self.coords))
+
+    def open_setup(self):
+        self.pause()
+        if self.setup_window and self.setup_window.winfo_exists():
+            self.setup_window.lift();return
+        win=tk.Toplevel(self.root);self.setup_window=win
+        win.title('초기 설정 · 로컬 점검');win.geometry('660x380')
+        body=ttk.Frame(win,padding=16);body.pack(fill='both',expand=True)
+        ttk.Label(body,text='1. Tesseract 일본어 OCR 설치',font=('',14,'bold')).pack(anchor='w')
+        ttk.Label(body,text='앱 설치본에는 OCR 엔진/일본어 모델이 기본 포함되지 않습니다.\n공식 안내의 Windows 배포처에서 설치하며 jpn 언어팩을 선택하세요.',wraplength=620).pack(anchor='w',pady=8)
+        def instructions():
+            import webbrowser
+            webbrowser.open('https://tesseract-ocr.github.io/tessdoc/Installation.html')
+        ttk.Button(body,text='공식 OCR 설치 안내 열기 (브라우저)',command=instructions).pack(anchor='w')
+        ttk.Entry(body,textvariable=self.engine,width=75).pack(fill='x',pady=8)
+        row=ttk.Frame(body);row.pack(fill='x')
+        def browse():
+            path=filedialog.askopenfilename(parent=win,title='설치한 tesseract.exe 선택',filetypes=[('Tesseract','*.exe'),('모든 파일','*')])
+            if path:self.engine.set(path);self.engine_verified=''
+        ttk.Button(row,text='OCR 실행파일 선택',command=browse).pack(side='left')
+        ttk.Button(row,text='환경 점검 (전송 없음)',command=self.check_environment).pack(side='left',padx=8)
+        ttk.Label(body,text='2. 사용할 모니터',font=('',12,'bold')).pack(anchor='w',pady=(16,4))
+        try:
+            import mss
+            with mss.mss() as capture:monitors=list(capture.monitors[1:])
+            options=[f'{i+1}: {m["width"]}×{m["height"]} ({m["left"]}, {m["top"]})' for i,m in enumerate(monitors)]
+        except Exception:options=['디스플레이를 찾지 못했습니다. 데모는 사용 가능합니다.']
+        choices=ttk.Combobox(body,state='readonly',values=options,width=65)
+        choices.current(min(self.monitor_index.get(),len(options)-1));choices.pack(anchor='w')
+        choices.bind('<<ComboboxSelected>>',lambda _:self.monitor_index.set(choices.current()))
+        row=ttk.Frame(body);row.pack(fill='x',pady=14)
+        ttk.Button(row,text='영역·엔진 설정 저장',command=self.persist_settings).pack(side='left')
+        ttk.Button(row,text='저장 설정 삭제',command=self.delete_settings).pack(side='left',padx=6)
+        ttk.Button(row,text='닫기',command=win.destroy).pack(side='right')
+        ttk.Label(body,text='저장: 영역 좌표와 엔진 경로만. API 키·동의·대사·학습 데이터는 포함하지 않습니다.',wraplength=620).pack(anchor='w')
+
+    def persist_settings(self):
+        try:
+            save_settings(settings_path(),self.current_region(),self.engine.get())
+            self.status.set('영역·엔진 경로 저장 완료. API 키와 전송 동의는 저장하지 않았습니다.')
+        except (OSError,ValueError,ReaderError):self.status.set('설정 저장 실패. 영역 값과 폴더 권한을 확인하세요.')
+
+    def delete_settings(self):
+        try:
+            settings_path().unlink(missing_ok=True)
+            self.status.set('저장 설정 삭제 완료. 현재 화면 값과 복습 파일은 유지됩니다.')
+        except OSError:self.status.set('설정 파일 삭제 권한을 확인하세요.')
+
+    def check_environment(self,then_start=False):
+        if self.busy:return
+        self.pause();self.busy=True
+        generation=self.generation;preferred=self.engine.get()
+        self.status.set('로컬 엔진과 코어를 점검하고 있습니다. 외부 전송은 없습니다.')
+        def work():
+            try:
+                if self.bridge is None:self.bridge=GoBridge()
+                hello=self.bridge.call('hello')
+                result=inspect_engine(preferred)
+                result['core']=hello.get('version','?');result['then_start']=then_start
+                self.results.put((generation,'diagnostics',result))
+            except ReaderError as error:self.results.put((generation,'error',str(error)))
+            except Exception:self.results.put((generation,'error','환경 점검 실패. 코어와 OCR 설치 경로를 확인하세요.'))
+            finally:self.results.put((generation,'done',''))
+        threading.Thread(target=work,daemon=True).start()
+
+    def pick_region(self):
+        if self.busy:return
+        self.pause()
+        if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
+        self.root.withdraw();self.subtitle.window.withdraw()
+        def restore():
+            self.root.deiconify();self.subtitle.window.deiconify()
+        def selected(region):
+            self.set_region(region);restore()
+            self.status.set('영역을 선택했습니다. 로컬 OCR 미리보기로 원문을 확인하세요.')
+        def show():
+            try:
+                import mss
+                with mss.mss() as capture:monitors=list(capture.monitors[1:])
+                if not monitors:raise ReaderError('사용할 모니터가 없습니다.')
+                monitor=monitors[min(self.monitor_index.get(),len(monitors)-1)]
+                RegionPicker(self.root,monitor,selected,restore)
+            except Exception:
+                restore();self.status.set('영역 선택 실패. 디스플레이 권한을 확인하거나 좌표를 직접 입력하세요.')
+        self.root.after(350,show)
+
+    def preview(self):
+        if self.busy:return
+        self.pause()
+        try:region=self.current_region()
+        except (ValueError,ReaderError):self.status.set('미리볼 대사 영역을 먼저 선택하세요.');return
+        generation=self.generation;preferred=self.engine.get()
+        self.busy=True;self.restore_after_job=True
+        if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
+        self.root.withdraw();self.subtitle.window.withdraw()
+        def work():
+            try:
+                if self.bridge is None:self.bridge=GoBridge()
+                self.bridge.call('clear')
+                text=ocr_region(region,self.bridge,preferred)
+                self.results.put((generation,'preview',text))
+            except ReaderError as error:self.results.put((generation,'error',str(error)))
+            except Exception:self.results.put((generation,'error','OCR 미리보기 실패. 엔진/jpn 언어팩/영역을 확인하세요.'))
+            finally:self.results.put((generation,'done',''))
+        self.root.after(350,lambda:threading.Thread(target=work,daemon=True).start())
+
+    def forget_key(self):
+        self.pause()
+        if self.busy:self.status.set('진행 중 작업이 끝난 뒤 키 지우기를 다시 눌러 주세요.');return
+        try:
+            if self.bridge:self.bridge.call('forget_key')
+            self.translator=None;self.mode=None;self.key.delete(0,'end');self.consent.set(False)
+            self.display('');self.status.set('API 키와 번역 문맥을 삭제했습니다. 세션 사용량은 유지됩니다.')
+        except ReaderError:self.status.set('코어 연결이 끊겼습니다. 앱을 종료하면 키 메모리가 해제됩니다.')
 
     def learn(self):
         self.pause()
@@ -148,8 +292,10 @@ class App:
         self.pause()
         if self.busy:
             self.status.set('작업 종료 후 대화 지우기를 다시 눌러 주세요.'); return
-        if self.translator:
-            self.translator.history.clear(); self.translator.cache.clear()
+        try:
+            if self.bridge:self.bridge.call('clear')
+        except ReaderError:
+            self.status.set('코어 연결 중단. 앱을 재실행하세요.');return
         self.key.delete(0, 'end'); self.display('')
         self.status.set('대화·입력 키 삭제. 사용량 한도는 유지됩니다. 앱 종료 시 메모리 해제.')
 
@@ -160,8 +306,12 @@ class App:
             mode = (self.demo.get(), self.pro.get())
             if not mode[0] and not self.consent.get():
                 raise ReaderError('외부 전송 동의가 필요합니다.')
-            region = Region(*(int(e.get()) for e in self.coords))
+            region = self.current_region()
             if not mode[0]:
+                engine=find_tesseract(self.engine.get())
+                if not engine or self.engine_verified!=engine:
+                    self.check_environment(then_start=True);return
+                self.active_engine=engine
                 import mss
                 with mss.mss() as sct:
                     monitors = sct.monitors[1:]
@@ -176,14 +326,31 @@ class App:
                 self.translator = GoTranslator(self.bridge)
                 self.mode = mode
                 self.key.delete(0, 'end')
-            self.target = None if mode[0] else target_window(region)
-            self.ready_at = time.monotonic() + 3
             self.region = region
             self.stable = GoStable(self.bridge)
             self.stop_event = threading.Event()
-            self.running = True
             self.generation += 1
-            self.status.set('3초 안에 게임 창을 클릭하세요. 포커스를 잃으면 자동 정지합니다.')
+            generation=self.generation
+            if mode[0]:
+                self.target=None;self.running=True;self.ready_at=time.monotonic()+1
+                self.status.set('오프라인 데모 실행 중 · 외부 전송 없음')
+            else:
+                # Remove the control window before resolving the game underneath ROI.
+                if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
+                self.busy=True;self.root.iconify();self.subtitle.window.withdraw()
+                self.status.set('게임 창을 클릭하세요. 3초 후 지정한 영역에서 시작합니다.')
+                def arm():
+                    self.busy=False
+                    if generation!=self.generation:return
+                    try:
+                        self.target=target_window(region)
+                        self.subtitle.window.deiconify()
+                        if sys.platform=='win32' and not self.subtitle.mode(False):
+                            raise ReaderError('클릭 통과를 설정하지 못했습니다. 자막 창 설정을 확인하세요.')
+                        self.running=True;self.ready_at=time.monotonic()+3
+                    except ReaderError as error:
+                        self.root.deiconify();self.pause();self.status.set(str(error))
+                self.root.after(350,arm)
         except (ValueError, ReaderError) as exc:
             messagebox.showerror('시작할 수 없음', str(exc))
         except Exception:
@@ -193,16 +360,25 @@ class App:
         try:
             if stop.is_set(): return
             if not demo: check_target(self.target, self.region)
-            text = ['こんにちは。', '一緒に帰りましょう。', '明日、またここで会おう。'][int(time.monotonic()/6)%3] if demo else ocr_region(self.region, getattr(self, 'bridge', None))
+            text = ['こんにちは。', '一緒に帰りましょう。', '明日、またここで会おう。'][int(time.monotonic()/6)%3] if demo else ocr_region(self.region, getattr(self, 'bridge', None), getattr(self, 'active_engine', ''))
             if stop.is_set(): return
             stable = self.stable.feed(text, time.monotonic())
             if stable:
                 if stop.is_set(): return
+                if not demo and getattr(self,'bridge',None):
+                    remaining=self.bridge.call('status').get('retry_after_ms',0)/1000
+                    if remaining>0:
+                        if stop.wait(min(remaining,3.1)):return
+                        check_target(self.target,self.region)
+                        if normalize(ocr_region(self.region,self.bridge,getattr(self,'active_engine',''))) != stable:
+                            self.stable=GoStable(self.bridge);return
+                    check_target(self.target,self.region)
+                if stop.is_set():return
                 result = translator.translate(stable)
                 if stop.is_set(): return
                 if not demo:
                     check_target(self.target, self.region)
-                    if normalize(ocr_region(self.region, getattr(self, 'bridge', None))) != stable:
+                    if normalize(ocr_region(self.region, getattr(self, 'bridge', None), getattr(self, 'active_engine', ''))) != stable:
                         self.stable = GoStable(self.bridge) if getattr(self, 'bridge', None) else StableText()
                         return
                 self.results.put((generation, 'text', stable+'\n\n'+result))
@@ -217,9 +393,22 @@ class App:
         try:
             while True:
                 generation, kind, text = self.results.get_nowait()
-                if kind == 'done': self.busy = False
+                if kind == 'done':
+                    self.busy = False
+                    if self.restore_after_job:
+                        self.restore_after_job=False;self.root.deiconify();self.subtitle.window.deiconify()
                 if generation != self.generation: continue
                 if kind == 'error': self.pause(); self.status.set(text)
+                if kind == 'diagnostics':
+                    self.engine_verified=text['path'] if text['ok'] else ''
+                    self.status.set(text['detail'])
+                    self.local_output(f"Go 코어 {text['core']}: 연결 확인\n{text['detail']}\n\n외부 전송/유료 API 호출 없이 점검했습니다.")
+                    if text['ok']:
+                        self.engine.set(text['path'])
+                        if text['then_start']:self.root.after(0,self.start)
+                if kind == 'preview':
+                    self.local_output((text.strip() or '[인식된 글자 없음]')+'\n\n[로컬 OCR 미리보기 · 번역 API 전송 없음]')
+                    self.status.set('인식 원문을 확인하세요. 잘못 잡혔다면 영역을 좁히거나 jpn 언어팩을 점검하세요.')
                 if kind == 'text':
                     self.display(text)
                     source, translation = text.split('\n\n', 1)
@@ -246,6 +435,13 @@ class App:
         self.root.destroy()
 
 if __name__ == '__main__':
+    import argparse
+    parser=argparse.ArgumentParser()
+    parser.add_argument('--self-test',action='store_true');parser.add_argument('--report')
+    args=parser.parse_args()
+    if args.self_test:
+        from selftest import run
+        raise SystemExit(run(args.report))
     if sys.platform == 'win32':
         try: ctypes.windll.shcore.SetProcessDpiAwareness(2)
         except Exception: pass

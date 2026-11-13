@@ -1,0 +1,65 @@
+name: Windows installer candidate
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '*.py'
+      - 'go-core/**'
+      - 'tests/**'
+      - 'requirements.txt'
+      - 'packaging/**'
+      - '.github/workflows/build-windows.yml'
+      - 'INSTALLATION.md'
+      - 'THIRD_PARTY_NOTICES.md'
+      - 'LICENSE'
+permissions:
+  contents: read
+concurrency:
+  group: windows-installer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: false
+jobs:
+  package:
+    runs-on: windows-2025
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16 # v6
+        with:
+          go-version: '1.27.x'
+          cache: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.11'
+          architecture: x64
+      - name: Build and check frozen app, then compile installer
+        shell: pwsh
+        run: ./packaging/build_windows.ps1
+      - name: Install, run offline smoke, and uninstall in disposable runner
+        shell: pwsh
+        run: ./packaging/smoke_install.ps1
+      - name: Record build identity
+        shell: pwsh
+        run: |
+          @"
+          Commit: ${{ github.sha }}
+          Runner: Windows Server 2025 x64
+          Package: unsigned development candidate, no OCR engine bundled
+          Tests: Go/Python tests, frozen/installed offline self-test, install/uninstall smoke
+          Not tested: Windows 10/11 game UI, OCR quality, overlay, low-spec performance
+          "@ | Set-Content dist/BUILD-INFO.txt -Encoding utf8
+      - name: Upload candidate and evidence (not a release)
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6, Node 24
+        with:
+          name: KotobaBridge-Windows-x64-candidate
+          path: |
+            dist/KotobaBridge-Setup-x64.exe
+            dist/SHA256SUMS.txt
+            dist/BUILD-INFO.txt
+            dist/package-self-test.json
+            dist/installed-self-test.json
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+          include-hidden-files: false
