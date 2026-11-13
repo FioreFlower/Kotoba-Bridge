@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.key
+.env
+build/
+dist/
+.build-venv/
+*.exe
+kotoba-core
+go-core/.toolchain/
+go-core/.cache/
+*.zip
+*.bundle
+study-cards*.json
+
+*.json
+!**/test*.json

@@ -1,0 +1,29 @@
+name: Offline tests
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.x'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: go test ./...
+        working-directory: go-core
+      - run: python -m pip install -r requirements.txt
+      - name: Build IPC core for tests
+        shell: bash
+        run: |
+          cd go-core
+          if [ "$RUNNER_OS" = "Windows" ]; then go build -o ../kotoba-core.exe .; else go build -o ../kotoba-core .; fi
+      - run: python -m unittest discover -s tests -v
+      - run: go build .
+        working-directory: go-core
