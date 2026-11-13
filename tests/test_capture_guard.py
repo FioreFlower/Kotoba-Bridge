@@ -42,3 +42,27 @@ class GuardTests(unittest.TestCase):
   def style(*args):order.append('style');return True
   with patch('study_ui.sys.platform','win32'),patch('study_ui.click_through',side_effect=style):self.assertTrue(sub.mode(False))
   self.assertEqual(order[:2],['style','show'])
+
+class StopAccessTests(unittest.TestCase):
+ def app(self):
+  import threading
+  a=App.__new__(App);a.root=Mock();a.root.state.return_value='normal'
+  a.running=True;a.arming=False;a.mode=(False,False);a.generation=7
+  a.stop_event=threading.Event();a.status=Mock();a.start=Mock()
+  return a
+ def test_restoring_controls_stops_and_does_not_reminimize(self):
+  a=self.app();a.control_restored(SimpleNamespace(widget=a.root))
+  self.assertFalse(a.running);self.assertTrue(a.stop_event.is_set());self.assertEqual(a.generation,8)
+  a.root.iconify.assert_not_called();a.start.assert_not_called()
+ def test_restoring_during_arming_cancels_wait(self):
+  a=self.app();a.running=False;a.arming=True;a.control_restored()
+  self.assertFalse(a.arming);self.assertTrue(a.stop_event.is_set())
+ def test_child_map_and_iconic_controls_do_not_stop_game(self):
+  a=self.app();a.control_restored(SimpleNamespace(widget=Mock()))
+  self.assertTrue(a.running)
+  a.root.state.return_value='iconic';a.control_restored();self.assertTrue(a.running)
+ def test_demo_remains_visible_without_auto_pause(self):
+  a=self.app();a.mode=(True,False);a.control_restored();self.assertTrue(a.running)
+ def test_stale_environment_callback_cannot_restart_after_stop(self):
+  a=self.app();a.pause();a.start_if_current(7);a.start.assert_not_called()
+  a.start_if_current(8);a.start.assert_called_once()
