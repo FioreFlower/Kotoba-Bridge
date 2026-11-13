@@ -28,6 +28,6 @@ def region_hint(region, monitor):
 
 def usage_label(calls, chars, *, demo, local=False):
     if demo:
-        return f'오프라인 데모 · 모의 사용량 {calls}/100회 · {chars}/10,000자 · 외부 전송 없음 · API 과금 없음'
-    prefix = '로컬 번역 · 세션 처리 한도' if local else '외부 API · 세션 예약 사용량 (실제 청구액 아님)'
+        return f'오프라인 데모(모의 처리) · 공용 세션 한도 {calls}/100회 · {chars}/10,000자 · 현재 외부 전송 없음 · API 과금 없음'
+    prefix = '로컬 번역 · 공용 세션 한도' if local else '외부 API · 공용 세션 한도 (실제 청구액 아님)'
     return f'{prefix} {calls}/100회 · {chars}/10,000자'
