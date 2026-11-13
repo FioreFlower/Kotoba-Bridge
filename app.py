@@ -108,7 +108,6 @@ class App:
         self.subtitle=Subtitle(root)
         self.ready_at = 0
         self.running = False
-        self.arming = False
         self.busy = False
         self.generation = 0
         self.results = queue.Queue()
@@ -171,8 +170,6 @@ class App:
         self.output.pack(fill='both', expand=True)
         self.output.configure(state='disabled')
         root.bind('<Escape>', lambda _: self.pause())
-        root.bind('<Map>', self.control_restored, add='+')
-        root.bind('<FocusIn>', self.control_restored, add='+')
         root.protocol('WM_DELETE_WINDOW', self.close)
         self.mode = None
         overlay_row=ttk.Frame(panel);overlay_row.pack(fill='x',pady=4,before=self.output)
@@ -564,20 +561,11 @@ class App:
         self.output.configure(state='normal'); self.output.delete('1.0', 'end')
         self.output.insert('end', value); self.output.configure(state='disabled')
 
-    def control_restored(self, event=None):
-        # A child/subtitle Map must not be mistaken for restoring the controls.
-        if event is not None and event.widget is not self.root:return
-        active = self.running or getattr(self, 'arming', False)
-        if active and self.mode and not self.mode[0] and self.root.state() == 'normal':
-            self.pause()
-            self.status.set('설정 창으로 돌아와 정지했습니다. 다시 시작하려면 시작 / 재개를 누르세요. 이미 보낸 요청은 취소되지 않을 수 있습니다.')
-
     def start_if_current(self, generation):
         # An engine-check callback queued before Esc/stop may not restart later.
         if generation == self.generation:self.start()
 
     def pause(self):
-        self.arming = False
         self.running = False; self.stop_event.set(); self.generation += 1
         self.status.set('정지 · 진행 중인 요청은 취소되지 않을 수 있으며 결과는 버립니다.')
 
@@ -631,7 +619,7 @@ class App:
             else:
                 # Remove the control window before resolving the game underneath ROI.
                 if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
-                self.busy=True;self.root.iconify();self.arming=True;self.subtitle.window.withdraw()
+                self.busy=True;self.root.iconify();self.subtitle.window.withdraw()
                 self.status.set('게임 창을 클릭하세요. 최대 15초 동안 포커스를 확인하며 캡처/번역하지 않습니다.')
                 deadline=time.monotonic()+15
                 self.root.after(350,lambda:self.arm_game(generation,region,deadline))
@@ -661,7 +649,7 @@ class App:
             now=time.monotonic()
             if since is None or now-since<0.6:
                 self.root.after(200,lambda:self.arm_game(generation,region,deadline,chosen,True,now if since is None else since));return
-            self.target=chosen;self.busy=False;self.arming=False;self.running=True;self.ready_at=now+0.3
+            self.target=chosen;self.busy=False;self.running=True;self.ready_at=now+0.3
             self.status.set('게임 창 연결 완료 · 포커스/위치 변경 시 즉시 정지합니다.')
         except ReaderError as error:
             self.busy=False;self.root.deiconify();self.pause();self.status.set(str(error))
@@ -700,7 +688,6 @@ class App:
             self.results.put((generation, 'done', ''))
 
     def poll(self):
-        self.control_restored() # Stop before draining responses or scheduling another capture.
         try:
             while True:
                 generation, kind, text = self.results.get_nowait()
