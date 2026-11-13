@@ -20,6 +20,9 @@ class WidgetSmokeTests(unittest.TestCase):
         self.root.update_idletasks()
     def tearDown(self):
         self.app.close();self.setting_patch.stop();self.data_patch.stop();self.folder.cleanup()
+    def test_borderless_subtitle(self):
+        self.assertTrue(self.app.subtitle.window.overrideredirect())
+
     def test_source_and_translation_separated(self):
         self.app.display('こんにちは。\n\n안녕하세요.')
         self.assertEqual(self.app.subtitle.text.get('1.0','end-1c'),'こんにちは。')

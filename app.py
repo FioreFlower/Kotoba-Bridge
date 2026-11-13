@@ -44,34 +44,52 @@ def ocr_region(region, bridge=None, preferred=''):
 
 
 
+from dataclasses import dataclass
+
+@dataclass(frozen=True)
+class CaptureTarget:
+    hwnd: int
+    pid: int
+    rect: tuple
+
+
 def target_window(region):
     if sys.platform != 'win32':
-        return None
+        raise ReaderError('실제 게임 창 연결은 Windows에서 확인해야 합니다.')
     from ctypes import wintypes
-    user32 = ctypes.windll.user32
-    user32.WindowFromPoint.argtypes = [wintypes.POINT]
-    user32.WindowFromPoint.restype = wintypes.HWND
-    user32.GetAncestor.argtypes = [wintypes.HWND, wintypes.UINT]
-    user32.GetAncestor.restype = wintypes.HWND
-    point = wintypes.POINT(region.left + region.width//2, region.top + region.height//2)
-    hwnd = user32.GetAncestor(user32.WindowFromPoint(point), 2)
-    rect = wintypes.RECT()
-    if not hwnd or not user32.GetWindowRect(wintypes.HWND(hwnd), ctypes.byref(rect)):
-        raise ReaderError('게임 창을 찾지 못했습니다.')
-    if not (rect.left <= region.left and rect.top <= region.top and
-            rect.right >= region.left+region.width and rect.bottom >= region.top+region.height):
-        raise ReaderError('캡처 영역을 게임 창 내부에 지정하세요.')
-    return hwnd
+    import os
+    from live_region import ensure_physical_dpi
+    ensure_physical_dpi()
+    api=ctypes.windll.user32
+    api.WindowFromPoint.argtypes=[wintypes.POINT];api.WindowFromPoint.restype=wintypes.HWND
+    api.GetAncestor.argtypes=[wintypes.HWND,wintypes.UINT];api.GetAncestor.restype=wintypes.HWND
+    api.GetWindowRect.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.RECT)];api.GetWindowRect.restype=wintypes.BOOL
+    api.GetWindowThreadProcessId.argtypes=[wintypes.HWND,ctypes.POINTER(wintypes.DWORD)];api.GetWindowThreadProcessId.restype=wintypes.DWORD
+    point=wintypes.POINT(region.left+region.width//2,region.top+region.height//2)
+    hwnd=api.GetAncestor(api.WindowFromPoint(point),2)
+    rect=wintypes.RECT();pid=wintypes.DWORD()
+    if not hwnd or not api.GetWindowRect(hwnd,ctypes.byref(rect)) or not api.GetWindowThreadProcessId(hwnd,ctypes.byref(pid)):
+        raise ReaderError('대사 영역의 게임 창을 찾지 못했습니다.')
+    if pid.value==os.getpid():raise ReaderError('앱/자막창이 대사 영역을 가립니다. 자막을 영역 밖으로 옮기세요.')
+    if not (rect.left<=region.left and rect.top<=region.top and rect.right>=region.left+region.width and rect.bottom>=region.top+region.height):
+        raise ReaderError('대사 영역 전체가 게임 창 안에 있어야 합니다.')
+    return CaptureTarget(int(hwnd),pid.value,(rect.left,rect.top,rect.right,rect.bottom))
 
 
-def check_target(hwnd, region):
-    if hwnd is None:
-        return
+def foreground_handle():
+    if sys.platform!='win32':return None
     from ctypes import wintypes
-    user32 = ctypes.windll.user32
-    user32.GetForegroundWindow.restype = wintypes.HWND
-    if user32.GetForegroundWindow() != hwnd or target_window(region) != hwnd:
-        raise ReaderError('게임 창 포커스/위치 변경: 개인정보 보호를 위해 정지했습니다.')
+    api=ctypes.windll.user32
+    api.GetForegroundWindow.restype=wintypes.HWND
+    return api.GetForegroundWindow()
+
+
+def check_target(target,region):
+    if target is None:return
+    if foreground_handle()!=target.hwnd:
+        raise ReaderError('게임 창 포커스 변경: 캡처/전송을 정지했습니다.')
+    if target_window(region)!=target:
+        raise ReaderError('게임 창 위치/크기/대상 변경 또는 가림: 캡처/전송을 정지했습니다.')
 
 
 class App:
@@ -100,6 +118,7 @@ class App:
         self.engine_verified = ''
         self.monitor_index = tk.IntVar(value=0)
         self.setup_window = None
+        self.region_editor=None;self.placement_editor=None
         self.restore_after_job = False
         self.stable = StableText()
         self.provider=tk.StringVar(value='DeepL')
@@ -115,7 +134,7 @@ class App:
         ttk.Label(panel, text='Kotoba Bridge', font=('', 20, 'bold')).pack(anchor='w')
         ttk.Label(panel, text='처음에는 오프라인 데모로 확인하세요. 실제 게임은 ① 설정 → ② 영역 → ③ OCR 미리보기 순서입니다.').pack(anchor='w', pady=6)
         onboarding=ttk.Frame(panel);onboarding.pack(fill='x',pady=4)
-        for label,command in [('① 초기 설정',self.open_setup),('② 마우스로 영역 선택',self.pick_region),('③ 로컬 OCR 미리보기',self.preview)]:
+        for label,command in [('① 초기 설정',self.open_setup),('② 게임 위 영역 편집',self.pick_region),('③ 로컬 OCR 미리보기',self.preview),('화면 사진에서 선택',self.pick_snapshot)]:
             ttk.Button(onboarding,text=label,command=command).pack(side='left',padx=3)
         provider_row=ttk.Frame(panel);provider_row.pack(fill='x')
         ttk.Label(provider_row,text='번역 제공자').pack(side='left')
@@ -164,7 +183,8 @@ class App:
         if not self.subtitle.separate_background:slider.configure(state='disabled')
         ttk.Label(overlay_row,textvariable=self.opacity_label).pack(side='left')
         ttk.Button(overlay_row,text='배경 설정 저장',command=self.save_overlay).pack(side='left',padx=6)
-        ttk.Button(overlay_row,text='자막 표시 / 위치·배경 복구',command=self.restore_overlay).pack(side='left')
+        ttk.Button(overlay_row,text='자막 위치 편집',command=self.edit_overlay).pack(side='left')
+        ttk.Button(overlay_row,text='자막 위치·배경 복구',command=self.restore_overlay).pack(side='left')
         self.change_opacity(initial_opacity)
         self.consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
         self.local_consent.trace_add('write',lambda *_:self.pause() if not self.transfer_allowed() and (self.running or self.busy) else None)
@@ -189,6 +209,7 @@ class App:
         except (ReaderError,OSError):
             self.status.set('저장된 설정을 읽지 못했습니다. 초기 설정에서 다시 저장하거나 삭제하세요.')
         root.after(100, self.poll)
+        root.after(200,self.load_overlay_placement)
 
     def is_local(self):
         return hasattr(self,'provider') and self.provider.get()=='로컬 llama.cpp'
@@ -216,9 +237,48 @@ class App:
             self.status.set('자막 배경 설정 저장 완료 · 글자 불투명도는 항상 100%')
         except (OSError,ReaderError,ValueError):self.status.set('자막 배경 설정 저장 실패. 폴더 권한을 확인하세요.')
 
+    def load_overlay_placement(self):
+        if self.placement_editor or self.region_editor:return
+        try:
+            import mss
+            from overlay_placement import restore_placement
+            with mss.mss() as capture:monitors=list(capture.monitors[1:])
+            restore_placement(self.subtitle.window,monitors)
+            self.subtitle._queue_sync()
+        except Exception:
+            self.status.set('저장 자막 위치를 적용하지 못했습니다. 자막 위치·배경 복구를 사용하세요.')
+
+    def edit_overlay(self):
+        if self.busy or self.region_editor or self.placement_editor:return
+        self.pause()
+        previous=self.subtitle.learning
+        try:
+            import mss
+            from overlay_placement import OverlayPlacementEditor
+            with mss.mss() as capture:monitors=list(capture.monitors[1:])
+            def finished(saved,geometry):
+                self.placement_editor=None;self.subtitle.mode(previous)
+                self.subtitle._queue_sync()
+                self.status.set('자막 배치 저장 완료 · 번역은 정지 상태' if saved else '자막 배치 취소 · 이전 위치 복원 · 번역은 정지 상태')
+            self.placement_editor=OverlayPlacementEditor(self.root,self.subtitle.window,monitors,pause=self.pause,set_interactive=lambda enabled:self.subtitle.mode(enabled),finished=finished,on_change=self.subtitle._queue_sync)
+        except Exception as exc:
+            self.subtitle.mode(previous)
+            self.status.set(str(exc) if isinstance(exc,ReaderError) else '자막 위치 편집을 열지 못했습니다.')
+
     def restore_overlay(self):
-        self.pause();self.subtitle.restore();self.opacity_value.set(85);self.change_opacity(85)
-        self.status.set('자막 위치/배경을 복구했습니다. 게임 밖에서 위치를 조정한 뒤 재개하세요.')
+        self.pause()
+        if self.busy or self.placement_editor or self.region_editor:
+            self.status.set('진행 중 작업/편집을 마친 뒤 자막 위치를 복구하세요.');return
+        try:
+            import mss
+            from overlay_placement import Geometry,fit_geometry,apply_geometry,save_placement
+            with mss.mss() as capture:monitors=list(capture.monitors[1:])
+            geometry=fit_geometry(Geometry(),monitors)
+            apply_geometry(self.subtitle.window,geometry);save_placement(geometry)
+            self.subtitle.mode(False);self.opacity_value.set(85);self.change_opacity(85)
+            self.status.set('자막 위치를 화면 안으로 복구·저장했습니다. 배경은 85%이며 번역은 정지 상태입니다.')
+        except Exception as exc:
+            self.status.set(str(exc) if isinstance(exc,ReaderError) else '자막 위치 복구 실패. 모니터와 폴더 권한을 확인하세요.')
 
     def open_input(self):
         self.pause()
@@ -349,6 +409,35 @@ class App:
         threading.Thread(target=work,daemon=True).start()
 
     def pick_region(self):
+        if self.busy or self.region_editor or self.placement_editor:return
+        self.pause()
+        try:
+            import mss
+            from live_region import LiveRegionEditor,validate_region,ensure_physical_dpi
+            ensure_physical_dpi()
+            with mss.mss() as capture:monitors=list(capture.monitors[1:])
+            try:initial=validate_region(self.current_region(),monitors)
+            except (ValueError,ReaderError):
+                monitor=monitors[min(self.monitor_index.get(),len(monitors)-1)]
+                initial=Region(monitor['left'],monitor['top'],min(900,monitor['width']),min(140,monitor['height']))
+            def restore():
+                self.region_editor=None;self.root.deiconify()
+                self.status.set('영역 편집 종료 · 번역은 정지 상태입니다.')
+            def selected(region):
+                try:
+                    with mss.mss() as capture:current=list(capture.monitors[1:])
+                    validate_region(region,current)
+                    self.set_region(region);restore()
+                    self.root.after(100,self.preview)
+                except (ReaderError,ValueError):
+                    restore();self.status.set('모니터 구성이 바뀌어 새 영역을 적용하지 않았습니다. 다시 선택하세요.')
+            self.subtitle.window.withdraw();self.root.withdraw()
+            self.region_editor=LiveRegionEditor(self.root,initial,monitors,selected,restore)
+        except Exception as exc:
+            self.root.deiconify();self.region_editor=None
+            self.status.set(str(exc) if isinstance(exc,ReaderError) else '실제 화면 편집 실패. 화면 사진 선택 또는 수치 입력을 사용하세요.')
+
+    def pick_snapshot(self):
         if self.busy:return
         self.pause()
         if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
@@ -488,7 +577,7 @@ class App:
         self.status.set('대화·입력 키 삭제. 사용량 한도는 유지됩니다. 앱 종료 시 메모리 해제.')
 
     def start(self):
-        if self.running or self.busy or self.study_window is not None or self.input_window is not None:
+        if self.running or self.busy or self.study_window is not None or self.input_window is not None or self.region_editor is not None or self.placement_editor is not None:
             return
         try:
             mode = (self.demo.get(), self.pro.get())
@@ -527,23 +616,39 @@ class App:
                 # Remove the control window before resolving the game underneath ROI.
                 if self.setup_window and self.setup_window.winfo_exists():self.setup_window.destroy()
                 self.busy=True;self.root.iconify();self.subtitle.window.withdraw()
-                self.status.set('게임 창을 클릭하세요. 3초 후 지정한 영역에서 시작합니다.')
-                def arm():
-                    self.busy=False
-                    if generation!=self.generation:return
-                    try:
-                        self.target=target_window(region)
-                        self.subtitle.window.deiconify()
-                        if sys.platform=='win32' and not self.subtitle.mode(False):
-                            raise ReaderError('클릭 통과를 설정하지 못했습니다. 자막 창 설정을 확인하세요.')
-                        self.running=True;self.ready_at=time.monotonic()+3
-                    except ReaderError as error:
-                        self.root.deiconify();self.pause();self.status.set(str(error))
-                self.root.after(350,arm)
+                self.status.set('게임 창을 클릭하세요. 최대 15초 동안 포커스를 확인하며 캡처/번역하지 않습니다.')
+                deadline=time.monotonic()+15
+                self.root.after(350,lambda:self.arm_game(generation,region,deadline))
+
         except (ValueError, ReaderError) as exc:
             messagebox.showerror('시작할 수 없음', str(exc))
         except Exception:
             messagebox.showerror('시작할 수 없음', '캡처 라이브러리 또는 디스플레이를 확인하세요.')
+
+    def arm_game(self,generation,region,deadline,candidate=None,shown=False,since=None):
+        if generation!=self.generation:
+            self.busy=False;return
+        try:
+            if time.monotonic()>=deadline:
+                raise ReaderError('게임 창 연결 시간 초과: 캡처/번역을 시작하지 않았습니다. 대사 영역·자막 겹침을 확인하고 다시 시작하세요.')
+            try:
+                chosen=candidate or target_window(region)
+                check_target(chosen,region)
+            except ReaderError:
+                self.root.after(200,lambda:self.arm_game(generation,region,deadline,candidate,shown,None));return
+            if not shown:
+                before=foreground_handle()
+                if sys.platform=='win32' and not self.subtitle.mode(False):
+                    raise ReaderError('클릭 통과를 설정하지 못해 시작하지 않았습니다.')
+                self.focus_transition=(before,foreground_handle()) # memory only, no titles or screenshots
+                self.root.after(200,lambda:self.arm_game(generation,region,deadline,chosen,True,None));return
+            now=time.monotonic()
+            if since is None or now-since<0.6:
+                self.root.after(200,lambda:self.arm_game(generation,region,deadline,chosen,True,now if since is None else since));return
+            self.target=chosen;self.busy=False;self.running=True;self.ready_at=now+0.3
+            self.status.set('게임 창 연결 완료 · 포커스/위치 변경 시 즉시 정지합니다.')
+        except ReaderError as error:
+            self.busy=False;self.root.deiconify();self.pause();self.status.set(str(error))
 
     def worker(self, generation, demo, stop, translator):
         try:
@@ -620,6 +725,10 @@ class App:
 
     def close(self):
         self.pause()
+        for editor in [getattr(self,'region_editor',None),getattr(self,'placement_editor',None)]:
+            try:
+                if editor:editor.cancel()
+            except (ReaderError,tk.TclError):pass
         if getattr(self,'local_window',None):self.local_window.close()
         try:
             if getattr(self,'managed_engine',None):self.managed_engine.stop()

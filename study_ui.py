@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 import webbrowser
 from study import dictionary_url
+from core import ReaderError
 
 
 def style_matches(style, enabled):
@@ -64,6 +65,7 @@ class Subtitle:
         self.sync_pending=False
         self.window = tk.Toplevel(root)
         self.window.title('Kotoba Bridge 자막')
+        self.window.overrideredirect(True)
         self.window.geometry('650x210+750+40')
         self.window.attributes('-topmost', True)
         self.window.attributes('-alpha', 1.0)
@@ -110,7 +112,13 @@ class Subtitle:
         if not self.separate_background:return
         if not self.window.winfo_ismapped():self.background.withdraw();return
         w=self.window
-        self.background.geometry(f'{w.winfo_width()}x{w.winfo_height()}{w.winfo_rootx():+d}{w.winfo_rooty():+d}')
+        try:
+            from overlay_placement import window_geometry,apply_geometry
+            apply_geometry(self.background,window_geometry(w))
+        except (ReaderError,ValueError):
+            self.background.withdraw();return
+        if not click_through(self.background,True):
+            self.background.withdraw();return
         self.background.deiconify()
         self.background.lower(self.window)
         if not click_through(self.background,True):
@@ -146,6 +154,8 @@ class Subtitle:
 
     def mode(self, learning):
         self.learning=learning
+        if not learning and sys.platform=='win32' and not click_through(self.window,True):
+            self.clickthrough_ok=False;return False
         self.window.deiconify()
         if self.background:click_through(self.background,True)
         self._queue_sync()
