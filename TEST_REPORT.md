@@ -1,3 +1,23 @@
+## OCR 포함 설치형/포터블 후속
+
+Linux Python 68개 중 65개 통과, GUI 3개 제외. 포터블/설치형 데이터 경로 검사를 추가했다. Linux 임시 번들 배치에서 실제 엔진·모델·필수 OCR self-test가 통과했다. Windows 소스빌드/설치형/포터블 실제 결과는 최신 Actions를 확인하며, 성공 전 완료로 주장하지 않는다. Windows 10/11 게임 실기·저사양 성능은 미검증이다.
+
+## 0.2 후속 입력/설치 안내 검증
+
+Linux Python 66개 중 63개 통과, 실제 Tk 표시 환경이 없는 GUI 3개는 제외. 추가 검사: 수동 원문 동의 누락/작업 중 전송 차단, 정확한 원문 1회 전송 목업, 중지 후 늦은 결과 폐기, 오류 자동 재시도 없음, 후보 세대/개수/이벤트/문자 한도, 무자동선택, 설치 안내 무네트워크/무프로세스. 실제 유료 API·외부 WebSocket·게임 주입은 호출하지 않았다. Windows CI 후속 결과는 해당 draft PR의 Actions에서 확인한다. 수동 입력→OCR 전환 때 문맥을 지우고 실패하면 전환을 중단하는 회귀 검사를 추가했다. Linux 실제 일본어 모델 합성 실험은 docs/OCR_EXPERIMENT.md에 기록했다. 아래 설치본 해시는 이전 0.2 후보의 기록이다.
+
+## 0.2 Windows CI 설치 후보 검증
+
+[실행 43420625994](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43420625994)에서 Windows Server 2025 x64 / Python 3.11.9 / Go 1.27.4로 Go 테스트, Python 45개(위젯 생성 2개 포함), PyInstaller 동결 앱 self-test, Inno Setup 설치본 생성, 설치 후 오프라인 데모 self-test와 제거가 모두 통과했다. 빌드 대상은 PR 가상 merge 2de08f2f48fc62c09a31b842c8a804cf974fed7c, 소스 head 53c028979010d30cd3e453a1786bf3009e83422c이다. 이후 변경은 문서뿐이다.
+
+설치 EXE SHA256: `eb8c873c4d90a813d1eed72476d9ba6bfabbd34ef06b1be96ae037ac696dbc97`. 미서명 개발 후보이며 OCR 엔진/모델은 미포함. 다운로드한 artifact와 내부 설치본 체크섬, 두 self-test 보고서를 확인했다. Windows 10/11 장비의 실제 게임·화면 캡처·클릭 통과·DPI·일본어 OCR·API 연결·성능은 여전히 미검증이다. 서명·의존성 취약점 전수 감사와 일반 사용자 릴리스는 완료하지 않았다.
+
+## 0.2 개발 브랜치 검증 (Linux, 2026-11-13)
+
+Python 45개 중 43개 통과, GUI 2개는 DISPLAY 없음으로 건너뜀. Go 18개 테스트와 go vet 통과. 앱 오프라인 self-test에서 코어 0.2.0, 데모 번역, Python 의존성 확인. 유료 API 호출 없음. 일본어 OCR 모델·Windows 게임·클릭 통과·DPI·저사양 성능은 미검증. Windows CI 및 설치 후보 결과는 PR에서 별도 확인하며 CI의 오프라인 검사는 게임 인수 검사를 대체하지 않음.
+
+이하 기록은 0.1 당시 결과입니다.
+
 # 검증 보고 — 2026-11-13
 
 최종 대상: Windows 10 22H2 x64 / Windows 11 x64. **이번 실행 환경은 Linux이며 Windows 실기 테스트는 0회이다.**

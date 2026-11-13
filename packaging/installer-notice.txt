@@ -1,0 +1,13 @@
+Kotoba Bridge is an unsigned development candidate for Windows 10 22H2 x64 and Windows 11 x64.
+
+The app and its Go core are installed together. Python and Go do not need to be installed separately to run this package.
+
+This package includes Tesseract OCR built from pinned sources and the official Japanese OCR model. Separate OCR or language-pack installation is not required. First check the bundled engine and local OCR preview in the app.
+
+No API key is included. Translation is off until you supply your own key and consent to text transmission. Demo, environment checks and local OCR preview do not call a paid translation API.
+
+A successful CI build or installer smoke test does not prove real-game compatibility, Japanese OCR accuracy, overlay behavior, or low-spec performance.
+
+Do not bypass Windows security warnings. A public end-user release requires maintainer review and signing.
+
+Uninstalling does not delete exported study cards or settings outside the application folder. Delete these explicitly using the app or File Explorer when appropriate.
