@@ -10,8 +10,8 @@ $projectRoot = Split-Path $PSScriptRoot -Parent
 Set-Location $projectRoot
 if ($env:OS -ne 'Windows_NT') { throw 'Run this build on Windows x64.' }
 if (-not [Environment]::Is64BitProcess) { throw 'Use a 64-bit PowerShell and Python installation.' }
-& $PythonExe -c "import struct,sys; assert struct.calcsize('P')==8; assert sys.version_info[:2]==(3,13)"
-if ($LASTEXITCODE -ne 0) { throw 'Python 3.13 x64 is required.' }
+& $PythonExe -c "import struct,sys; assert struct.calcsize('P')==8; assert sys.version_info[:2]==(3,14) and sys.version_info[:3]>=(3,14,10); import tkinter; print('Python',sys.version,'Tcl/Tk',tkinter.TclVersion,tkinter.TkVersion)"
+if ($LASTEXITCODE -ne 0) { throw 'Python 3.14.10+ x64 (3.14 series) with Tcl/Tk is required.' }
 if (-not $TesseractRoot) { throw 'An audited OCR source bundle is required.' }
 if ($TesseractRoot) {
     $TesseractRoot = (Resolve-Path $TesseractRoot).Path

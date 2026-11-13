@@ -8,7 +8,7 @@ OCR·일본어 모델·런타임 포함 설치형/포터블 빌드를 추가했�
 
 0.2 개발 브랜치의 설치 후보·초기 설정 안내는 [INSTALLATION.md](INSTALLATION.md), 선택 가능한 후킹 입력원 검토와 미구현 범위는 [docs/TEXT_INPUT_SOURCES.md](docs/TEXT_INPUT_SOURCES.md)에 있습니다.
 
-## 개발 소스 실행 (Windows 10/11, Python 3.13 권장)
+## 개발 소스 실행 (Windows 10/11, Python 3.14.10 이상(3.14 계열) 권장)
 
 1. GitHub 저장소를 clone하거나 소스 ZIP을 일반 사용자 폴더에 풉니다. Python의 tkinter가 포함된 공식 Windows 설치본을 사용합니다.
 2. **GitHub 소스 ZIP에는 `kotoba-core.exe`가 없습니다.** Go를 설치하고 아래 명령으로 코어를 빌드합니다. 별도로 전달된 Library 개발 번들에는 Linux에서 교차 빌드한 미서명 Windows x64 코어가 있으나 Windows 실기 미검증입니다. 정식 서명 설치본은 아직 제공하지 않습니다. PR의 미서명 개발 설치 후보에는 코어와 UI 런타임을 동봉했습니다.
@@ -21,12 +21,12 @@ cd ..
 3. PowerShell에서 이 폴더로 이동한 뒤 실행합니다.
 
 ```powershell
-py -3.13 -m venv .venv
+py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe app.py
 ```
 
-Python 3.13이 설치되어 있다면 `setup_windows.cmd`로 위 설치와 첫 실행을 묶어 진행할 수도 있습니다. Windows 7에는 이 설치 경로를 적용하지 마세요. 다음부터 `run_windows.cmd`로 실행합니다. 첫 실행은 **오프라인 데모**입니다. 시작 버튼을 누르면 3초 후 예제 일본어 세 문장이 한국어 자막으로 반복 표시됩니다. 데모는 화면·OCR·네트워크를 사용하지 않으며 사전 정의된 번역만 보여 줍니다.
+Python 3.14.10 이상(3.14 계열)이 설치되어 있다면 `setup_windows.cmd`로 위 설치와 첫 실행을 묶어 진행할 수도 있습니다. Windows 7에는 이 설치 경로를 적용하지 마세요. 다음부터 `run_windows.cmd`로 실행합니다. 첫 실행은 **오프라인 데모**입니다. 시작 버튼을 누르면 3초 후 예제 일본어 세 문장이 한국어 자막으로 반복 표시됩니다. 데모는 화면·OCR·네트워크를 사용하지 않으며 사전 정의된 번역만 보여 줍니다.
 
 ## 실제 게임 연결
 
