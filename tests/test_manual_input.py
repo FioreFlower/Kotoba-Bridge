@@ -44,3 +44,15 @@ class ManualInputTests(unittest.TestCase):
         with patch('app.GoTranslator',return_value=translator),patch('app.threading.Thread',side_effect=self.run_now):a.translate_input('こんにちは。')
         self.assertEqual(translator.translate.call_count,1)
         self.assertEqual(a.results.get()[1],'error')
+
+    def test_source_switch_clears_manual_context_without_reconfigure(self):
+        a=self.app();a.manual_context=True
+        a.reset_manual_context()
+        a.bridge.call.assert_called_once_with('clear')
+        self.assertFalse(a.manual_context)
+        a.reset_manual_context()
+        self.assertEqual(a.bridge.call.call_count,1)
+    def test_failed_source_clear_keeps_boundary_closed(self):
+        a=self.app();a.manual_context=True;a.bridge.call.side_effect=ReaderError('closed')
+        with self.assertRaises(ReaderError):a.reset_manual_context()
+        self.assertTrue(a.manual_context)

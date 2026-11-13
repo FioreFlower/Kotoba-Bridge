@@ -165,6 +165,7 @@ class App:
         self.bridge.call('configure',key=self.key.get(),pro=self.pro.get(),demo=False)
         self.key.delete(0,'end');self.mode=(False,self.pro.get())
         self.translator=GoTranslator(self.bridge)
+        self.manual_context=True
         # Each reviewed paste is independent; retain session budget, clear old context.
         self.bridge.call('clear')
         self.stop_event=threading.Event();self.busy=True
@@ -179,6 +180,12 @@ class App:
             finally:self.results.put((generation,'done',''))
         threading.Thread(target=work,daemon=True).start()
         self.status.set('확인한 외부 원문 1회 번역 중 · 자동 감시 없음')
+
+    def reset_manual_context(self):
+        # A pasted line must never become context for a later screen capture.
+        if getattr(self,'manual_context',False):
+            self.bridge.call('clear')
+            self.manual_context=False
 
     def local_output(self,value):
         self.output.configure(state='normal');self.output.delete('1.0','end')
@@ -374,6 +381,7 @@ class App:
                 self.translator = GoTranslator(self.bridge)
                 self.mode = mode
                 self.key.delete(0, 'end')
+            self.reset_manual_context()
             self.region = region
             self.stable = GoStable(self.bridge)
             self.stop_event = threading.Event()
