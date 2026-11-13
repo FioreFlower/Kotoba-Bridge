@@ -173,7 +173,7 @@ func (c *Core) translate(text string) (string, error) {
 		return cached, nil
 	}
 	now := c.now()
-	if !c.last.IsZero() && now.Sub(c.last) < 3*time.Second {
+	if c.provider != "local" && !c.last.IsZero() && now.Sub(c.last) < 3*time.Second {
 		return "", errors.New("최소 호출 간격 3초: 잠시 후 재개하세요.")
 	}
 	if c.calls >= 100 || c.chars+n > 10000 {
@@ -385,7 +385,7 @@ func (c *Core) handle(r Request) (any, error) {
 	case "status":
 		remaining := 3*time.Second - c.now().Sub(c.last)
 		retryAfter := int64(0)
-		if !c.last.IsZero() && remaining > 0 {
+		if c.provider != "local" && !c.last.IsZero() && remaining > 0 {
 			retryAfter = int64((remaining + time.Millisecond - 1) / time.Millisecond)
 		}
 		return map[string]any{"calls": c.calls, "chars": c.chars, "retry_after_ms": retryAfter, "remaining_calls": 100 - c.calls, "remaining_chars": 10000 - c.chars}, nil

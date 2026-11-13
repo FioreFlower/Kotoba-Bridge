@@ -92,3 +92,18 @@ func TestLocalNetworkBoundary(t *testing.T) {
 		}
 	}
 }
+
+func TestLocalNoArtificialCloudDelay(t *testing.T) {
+	c := NewCore()
+	c.provider = "local"
+	c.last = c.now()
+	result, err := c.handle(Request{Version: 1, Method: "status"})
+	if err != nil || result.(map[string]any)["retry_after_ms"] != int64(0) {
+		t.Fatal(result, err)
+	}
+	c.provider = "deepl"
+	result, _ = c.handle(Request{Version: 1, Method: "status"})
+	if result.(map[string]any)["retry_after_ms"].(int64) <= 0 {
+		t.Fatal("cloud rate gate lost")
+	}
+}
