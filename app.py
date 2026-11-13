@@ -369,14 +369,15 @@ class App:
             remove_legacy_keys(settings_path())
             self.key_store.save(self.key.get(),self.pro.get())
             # Invalidate the provider only after the replacement was durably saved.
+            memory_failed=False
             if self.bridge:
                 try:self.bridge.call('forget_key')
                 except ReaderError:
-                    self.bridge.close();self.bridge=None
+                    self.bridge.close();memory_failed=True
             self.translator=None;self.mode=None;self.key.delete(0,'end')
             self.credentials_blocked=False
             self.key_state.set('암호화 저장 완료 · 입력란을 비웠습니다. 재실행 시 같은 Windows 계정에서 사용합니다.')
-            self.status.set('저장만 완료 · API 호출 없음 · 기존 세션 사용량 유지')
+            self.status.set('저장만 완료 · API 호출 없음 · 기존 세션 사용량 유지' if not memory_failed else '키는 저장했지만 코어 연결이 끊겼습니다. 앱을 재실행하세요. 새 세션 한도가 적용됩니다.')
         except ReaderError as exc:
             self.key_state.set(str(exc))
 
@@ -407,7 +408,7 @@ class App:
         try:
             if self.bridge:self.bridge.call('forget_key')
         except ReaderError:
-            self.bridge.close();self.bridge=None;memory_failed=True
+            self.bridge.close();memory_failed=True
         try:
             self.key_store.delete()
             remove_legacy_keys(settings_path())

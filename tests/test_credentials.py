@@ -119,3 +119,11 @@ class CredentialFlowTests(unittest.TestCase):
         a=self.app();a.key_store.load.side_effect=ReaderError('failed')
         with self.assertRaises(ReaderError):a.configure_credentials(False,False)
         a.bridge.call.assert_not_called()
+
+    def test_failed_core_clear_does_not_auto_restart_budget(self):
+        a=self.app();a.pause=Mock();a.busy=False;a.pro=Mock();a.pro.get.return_value=False
+        a.status=Mock();a.key_state=Mock();a.bridge.call.side_effect=ReaderError('dead')
+        original=a.bridge
+        with patch('app.remove_legacy_keys',return_value=False):a.save_key()
+        self.assertIs(a.bridge,original);original.close.assert_called_once()
+        self.assertIn('재실행',a.status.set.call_args.args[0])
