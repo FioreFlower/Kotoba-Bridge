@@ -19,6 +19,7 @@ class Candidate:
     text: str
     updates: int=1
     repeats: int=0
+    recent: tuple[str, ...]=()
 
 class CandidateSession:
     """Adapter contract prototype: generation fences and bounded streams, never auto-select."""
@@ -41,8 +42,10 @@ class CandidateSession:
         if identifier not in self.candidates and len(self.candidates)>=32:
             self.stop();raise ReaderError('후보 수 한도 초과: 탐색을 중지했습니다.')
         old=self.candidates.get(identifier)
+        recent=old.recent if old else ()
+        if not recent or recent[-1]!=text:recent=(*recent[-2:],text)
         self.candidates[identifier]=Candidate(identifier,text,old.updates+1 if old else 1,
-            old.repeats+int(old.text==text) if old else 0)
+            old.repeats+int(old.text==text) if old else 0,recent)
         self.events+=1
         return True
     def select(self,identifier):

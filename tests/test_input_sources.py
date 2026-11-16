@@ -42,3 +42,17 @@ class SourceTests(unittest.TestCase):
         self.assertEqual(s.candidates,{})
     def test_selection_missing_rejected(self):
         with self.assertRaises(ReaderError):CandidateSession().select('line')
+
+class RecentCandidateTests(unittest.TestCase):
+    def test_three_distinct_recent_lines_are_local_and_cleared(self):
+        s=CandidateSession();g=s.start(True)
+        for text in ['一。','二。','二。','三。','四。']:s.ingest(g,'a',text)
+        self.assertEqual(s.candidates['a'].recent,('二。','三。','四。'))
+        self.assertEqual(s.candidates['a'].text,'四。')
+        self.assertIsNone(s.selected)
+        s.stop();self.assertEqual(s.candidates,{})
+    def test_histories_do_not_mix_between_candidates(self):
+        s=CandidateSession();g=s.start(True)
+        s.ingest(g,'name','葵');s.ingest(g,'dialogue','こんにちは。')
+        self.assertEqual(s.candidates['name'].recent,('葵',))
+        self.assertEqual(s.candidates['dialogue'].recent,('こんにちは。',))

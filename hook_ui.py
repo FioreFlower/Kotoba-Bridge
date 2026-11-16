@@ -4,7 +4,7 @@ import time
 import tkinter as tk
 from tkinter import ttk,filedialog,messagebox
 from core import ReaderError
-from hook_cli import CliSession
+from hook_cli import CliSession,resolve_cli_folder
 from hook_stream import HookStream
 from hook_processes import visible_processes,identity,foreground_pid
 
@@ -21,7 +21,10 @@ class HookWindow:
         self.games=tk.Listbox(panel,height=5,exportselection=False);self.games.pack(fill='x')
         self.games.bind('<<ListboxSelect>>',self.process_selected)
         self.folder=tk.StringVar()
-        ttk.Button(panel,text='별도로 설치한 TextractorCLI.exe 선택',command=self.choose_cli).pack(anchor='w')
+        engine_bar=ttk.Frame(panel);engine_bar.pack(fill='x')
+        ttk.Button(engine_bar,text='압축 해제한 Textractor 폴더 선택',command=self.choose_folder).pack(side='left')
+        ttk.Button(engine_bar,text='엔진 검사 (실행 없음)',command=self.check_engine).pack(side='left',padx=8)
+        ttk.Button(engine_bar,text='CLI 파일 직접 선택',command=self.choose_cli).pack(side='left')
         ttk.Label(panel,textvariable=self.folder,wraplength=810).pack(anchor='w')
         self.consent=tk.BooleanVar(value=False)
         ttk.Checkbutton(panel,text='선택한 게임에만 연결하는 위험을 확인했습니다 (API 전송 동의와 별개)',variable=self.consent,command=self.consent_changed).pack(anchor='w')
@@ -40,6 +43,7 @@ class HookWindow:
         ttk.Button(translate_bar,text='연속 번역 정지',command=self.pause_stream).pack(side='left')
         ttk.Label(panel,text='자동 후보 수신은 로컬 전용입니다. 번역은 선택한 제공자와 기존 세션 한도를 사용합니다.\n광범위 메모리 탐색·후킹코드 입력·자동 재시도·게임별 프로필 저장은 아직 제공하지 않습니다.',wraplength=810).pack(anchor='w')
         ttk.Button(panel,text='닫고 OCR로 복귀 (자동 시작 안 함)',command=self.close).pack(anchor='e')
+        self.refresh()
         self.window.after(200,self.poll)
     def refresh(self):
         if self.client.process:self.status.set('연결을 먼저 해제하세요.');return
@@ -51,6 +55,19 @@ class HookWindow:
     def process_selected(self,event=None):
         self.consent.set(False)
         if self.client.process:self.stop()
+    def choose_folder(self):
+        if self.client.process:self.status.set('연결을 먼저 해제하세요.');return
+        name=filedialog.askdirectory(parent=self.window,title='공식 ZIP을 압축 해제한 폴더 (x86/x64가 든 폴더도 가능)')
+        if name:self.folder.set(name);self.consent.set(False);self.check_engine()
+    def engine_folder(self):
+        selected=self.games.curselection()
+        if not selected:raise ReaderError('게임 프로세스를 먼저 선택하세요. Windows가 아닌 게임의 32/64비트에 맞춥니다.')
+        return resolve_cli_folder(self.folder.get(),self.processes[selected[0]].arch)
+    def check_engine(self):
+        try:
+            folder=self.engine_folder()
+            self.status.set(f'파일 해시 검사 통과 · {folder} · 아직 실행/게임 연결하지 않았습니다.')
+        except ReaderError as error:self.status.set(str(error))
     def choose_cli(self):
         if self.client.process:self.status.set('연결을 먼저 해제하세요.');return
         name=filedialog.askopenfilename(parent=self.window,title='공식 TextractorCLI.exe',filetypes=[('Textractor CLI','TextractorCLI.exe')])
@@ -63,8 +80,9 @@ class HookWindow:
             if not selected:raise ReaderError('게임 프로세스를 직접 선택하세요.')
             if not self.consent.get():raise ReaderError('위험 고지와 선택 게임 연결 동의가 필요합니다.')
             target=self.processes[selected[0]]
+            folder=self.engine_folder()
             if not messagebox.askyesno('선택한 게임에 실제 후킹 연결',f'{Path(target.path).name}\nPID {target.pid} · {target.arch}\n\n저장한 오프라인 게임이 맞습니까? 외부 엔진을 실행해 이 프로세스에 후크를 설치합니다. 게임 호환성과 정상 해제를 보장하지 않습니다.',parent=self.window):return
-            self.client.connect(self.folder.get(),target,identity,True)
+            self.client.connect(folder,target,identity,True)
             self.status.set('연결 요청됨 · 게임에서 대사를 넘기세요. 후보 수신 전에는 성공으로 확인하지 않습니다.')
         except ReaderError as e:self.status.set(str(e))
     def poll(self):
@@ -82,7 +100,7 @@ class HookWindow:
                             if self.stream.active:
                                 self.stream.update(selected,c.text,time.monotonic());self.app.pause(notify_input=False)
                             else:self.app.pause()
-                        self.show(c.text)
+                        self.show_candidate(c.identifier)
                 if not self.stream.active:self.status.set(f'실제 CLI 후보 {len(self.rows)}개 수신 · 정확성은 게임 대사와 비교하세요.')
             self.tick_stream()
         except ReaderError as e:
@@ -137,6 +155,10 @@ class HookWindow:
         except ReaderError:
             self.stop();return False
 
+    def show_candidate(self,identifier):
+        candidate=self.client.candidates.candidates.get(identifier)
+        if candidate:
+            self.show('최근 대사 (최대 3개, 이 창에서만 보관)\n'+'\n───\n'.join(candidate.recent))
     def show(self,text):
         self.preview.configure(state='normal');self.preview.delete('1.0','end');self.preview.insert('1.0',text);self.preview.configure(state='disabled')
     def select(self,event=None):
@@ -144,7 +166,7 @@ class HookWindow:
         if indices:
             identifier=self.rows[indices[0]].identifier
             if identifier!=self.client.candidates.selected:self.app.pause()
-            self.show(self.client.candidates.select(identifier))
+            self.client.candidates.select(identifier);self.show_candidate(identifier)
     def translate(self):
         try:
             self.client.drain() # Check live identity before transmitting any selected text.

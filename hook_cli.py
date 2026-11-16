@@ -87,6 +87,21 @@ def verify_cli(folder,arch):
             raise ReaderError('지원하는 공식 Textractor 5.2.0 파일 해시와 다릅니다. 실행하지 않습니다.')
     return folder/'TextractorCLI.exe'
 
+def resolve_cli_folder(root, arch):
+    """Resolve only the selected folder or its exact architecture child; never launch.
+    No recursive scanning or fallback to the wrong process architecture.
+    """
+    root=Path(root)
+    if arch not in PINNED or not root.is_absolute():
+        raise ReaderError('먼저 게임을 선택하고 압축 해제한 엔진 폴더를 지정하세요.')
+    try:
+        # A direct CLI folder is authoritative: do not hide tampering by falling back.
+        folder=root if (root/'TextractorCLI.exe').exists() else root/arch
+        return verify_cli(folder,arch).parent
+    except OSError:
+        raise ReaderError('엔진 폴더를 읽을 수 없습니다. 공식 ZIP 전체를 압축 해제한 폴더를 선택하세요.') from None
+
+
 class CliSession:
     """One owned CLI, one selected process identity, bounded in-memory preview.
     CLI has no detach acknowledgement; close must never claim hook removal.
