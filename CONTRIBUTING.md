@@ -1,6 +1,6 @@
 # 기여 안내
 
-Windows 10 22H2 x64/Windows 11 x64 대상 Go core + Tk UI 시제품입니다. Go 코어는 표준 라이브러리만 사용합니다. UI에는 Python 3.11, tkinter, requirements.txt가 필요합니다.
+Windows 10 22H2 x64/Windows 11 x64 대상 Go core + Tk UI 시제품입니다. Go 코어는 표준 라이브러리만 사용합니다. UI에는 Python 3.14.10 이상(3.14 계열), tkinter, requirements.txt가 필요합니다.
 
 1. 저장소를 fork/clone하고 기능 브랜치를 만듭니다.
 2. `cd go-core` → `go test ./...` → `go build -o ../kotoba-core.exe .` (Windows). Linux는 출력명 `../kotoba-core`를 사용합니다.

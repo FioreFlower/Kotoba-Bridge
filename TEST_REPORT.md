@@ -1,3 +1,23 @@
+## OCR 포함 설치형/포터블 후속
+
+Linux Python 68개 중 65개 통과, GUI 3개 제외. 포터블/설치형 데이터 경로 검사를 추가했다. Linux 임시 번들 배치에서 실제 엔진·모델·필수 OCR self-test가 통과했다. Windows 소스빌드/설치형/포터블 실제 결과는 최신 Actions를 확인하며, 성공 전 완료로 주장하지 않는다. Windows 10/11 게임 실기·저사양 성능은 미검증이다.
+
+## 0.2 후속 입력/설치 안내 검증
+
+Linux Python 66개 중 63개 통과, 실제 Tk 표시 환경이 없는 GUI 3개는 제외. 추가 검사: 수동 원문 동의 누락/작업 중 전송 차단, 정확한 원문 1회 전송 목업, 중지 후 늦은 결과 폐기, 오류 자동 재시도 없음, 후보 세대/개수/이벤트/문자 한도, 무자동선택, 설치 안내 무네트워크/무프로세스. 실제 유료 API·외부 WebSocket·게임 주입은 호출하지 않았다. Windows CI 후속 결과는 해당 draft PR의 Actions에서 확인한다. 수동 입력→OCR 전환 때 문맥을 지우고 실패하면 전환을 중단하는 회귀 검사를 추가했다. Linux 실제 일본어 모델 합성 실험은 docs/OCR_EXPERIMENT.md에 기록했다. 아래 설치본 해시는 이전 0.2 후보의 기록이다.
+
+## 0.2 Windows CI 설치 후보 검증
+
+[실행 43420625994](https://github.com/FioreFlower/Kotoba-Bridge/actions/runs/43420625994)에서 Windows Server 2025 x64 / Python 3.11.9 / Go 1.27.4로 Go 테스트, Python 45개(위젯 생성 2개 포함), PyInstaller 동결 앱 self-test, Inno Setup 설치본 생성, 설치 후 오프라인 데모 self-test와 제거가 모두 통과했다. 빌드 대상은 PR 가상 merge 2de08f2f48fc62c09a31b842c8a804cf974fed7c, 소스 head 53c028979010d30cd3e453a1786bf3009e83422c이다. 이후 변경은 문서뿐이다.
+
+설치 EXE SHA256: `eb8c873c4d90a813d1eed72476d9ba6bfabbd34ef06b1be96ae037ac696dbc97`. 미서명 개발 후보이며 OCR 엔진/모델은 미포함. 다운로드한 artifact와 내부 설치본 체크섬, 두 self-test 보고서를 확인했다. Windows 10/11 장비의 실제 게임·화면 캡처·클릭 통과·DPI·일본어 OCR·API 연결·성능은 여전히 미검증이다. 서명·의존성 취약점 전수 감사와 일반 사용자 릴리스는 완료하지 않았다.
+
+## 0.2 개발 브랜치 검증 (Linux, 2026-11-13)
+
+Python 45개 중 43개 통과, GUI 2개는 DISPLAY 없음으로 건너뜀. Go 18개 테스트와 go vet 통과. 앱 오프라인 self-test에서 코어 0.2.0, 데모 번역, Python 의존성 확인. 유료 API 호출 없음. 일본어 OCR 모델·Windows 게임·클릭 통과·DPI·저사양 성능은 미검증. Windows CI 및 설치 후보 결과는 PR에서 별도 확인하며 CI의 오프라인 검사는 게임 인수 검사를 대체하지 않음.
+
+이하 기록은 0.1 당시 결과입니다.
+
 # 검증 보고 — 2026-11-13
 
 최종 대상: Windows 10 22H2 x64 / Windows 11 x64. **이번 실행 환경은 Linux이며 Windows 실기 테스트는 0회이다.**
@@ -51,3 +71,11 @@ Go와 Python 테스트 통과는 Windows 게임 호환성·GUI 품질의 증거�
 - Actions 경고: 외부 Go 모듈이 없어 go.sum cache 복원 경고, Node 20 기반 action 버전의 폐기 예정 경고가 있었다. 초기 실패의 원인은 이 경고가 아닌 위 테스트 인코딩이다.
 
 Windows CI의 mock/IPC 테스트는 Windows 게임·GUI·OCR·설치본 실기 검증이 아니다. 해당 미검증 항목은 그대로 유지한다.
+
+## 후킹 준비 UX 후속 검증 (2026-11-16)
+
+- 기준 원격 HEAD: `6999ec16c407b64e095432f11f153ac4ea7940e2`; 별도 worktree에서 변경. 기존 로컬의 별도 이력은 수정하지 않음.
+- Linux Python 3.12.14: 192개 테스트 중 182개 통과 / 10개 건너뜀. Windows API와 GUI 디스플레이 시험은 이 로컬 실행에서 건너뜀. 배포용 Python 3.14.10/Windows CI 결과와 혼동하지 않음.
+- Go 1.27.4: `go test ./...`와 코어 빌드 통과.
+- 신규 합성 시험: 정확한 아키텍처 폴더 선택, 직접 CLI 폴더, 잘못된 아키텍처·변조 파일·추가 DLL·읽기 불가 폴더 거절, 검사 중 프로세스 실행 없음, 종료 실패 시 입력 창 유지, 후보별 최대 3개 기록과 중지 시 삭제.
+- 실제 Textractor 실행·사용자 게임 연결·유료 API 호출·보안 설정 변경 없음. 최신 변경의 Windows GUI 및 패키지 검증은 해당 커밋 CI 결과를 별도로 확인해야 함.

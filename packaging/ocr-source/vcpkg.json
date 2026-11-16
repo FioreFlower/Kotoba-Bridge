@@ -1,0 +1,6 @@
+{
+  "name": "kotoba-bridge-ocr",
+  "version-string": "0.2.0",
+  "builtin-baseline": "fe8e78fac7df2793f9848ed0d27aa59d9c035998",
+  "dependencies": [{"name": "tesseract", "default-features": false}]
+}

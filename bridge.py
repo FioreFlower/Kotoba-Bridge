@@ -40,7 +40,7 @@ class GoBridge:
             if len(payload)>12_000_000:raise ReaderError('IPC 이미지 크기 한도를 초과했습니다.')
             try:
                 self.process.stdin.write(payload);self.process.stdin.flush()
-                raw=self.responses.get(timeout=25)
+                raw=self.responses.get(timeout=130 if method=='translate' else 25)
                 if raw is None:raise ValueError()
                 reply=json.loads(raw)
                 if reply.get('id')!=self.serial or reply.get('version')!=1:raise ValueError()

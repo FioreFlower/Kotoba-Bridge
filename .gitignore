@@ -15,3 +15,19 @@ study-cards*.json
 
 *.json
 !**/test*.json
+
+# Reproducible OCR build inputs, never generated vendor binaries
+.ocr-build/
+.ocr-bundle/
+!packaging/ocr-source/vcpkg.json
+
+# Never commit encrypted credentials, portable user data, or temporary stores
+*.dpapi
+.credential-*
+data/
+
+*.gguf
+.model-*
+!docs/evaluation/qwen25-1.5b-linux.json
+
+!docs/evaluation/*-comparison-linux.json

@@ -1,0 +1,46 @@
+name: Experimental hook CLI fixture
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['hook_*.py', 'tests/test_hook_cli.py', 'tests/hook_fixture/**', '.github/workflows/test-hook-cli.yml']
+permissions:
+  contents: read
+jobs:
+  fixture:
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: '3.14.10'
+      - name: Verify official external engine archive (not redistributed)
+        shell: pwsh
+        run: |
+          Invoke-WebRequest 'https://github.com/Artikash/Textractor/releases/download/v5.2.0/Textractor-5.2.0-Zip-Version-English-Only.zip' -OutFile engine.zip
+          if ((Get-FileHash engine.zip -Algorithm SHA256).Hash.ToLower() -ne '3efdcf390261fcfb6a44220113c68b06eba22a3ef441ac618208238b52ee7974') { throw 'Archive hash mismatch' }
+          Expand-Archive engine.zip -DestinationPath engine
+      - name: Inspect signatures without trust or security changes
+        shell: pwsh
+        run: ./tests/hook_fixture/audit_engine.ps1 -EngineRoot engine/Textractor -Report hook-engine-audit.json
+      - name: Build synthetic unprotected fixture
+        shell: pwsh
+        run: |
+          cmake -S tests/hook_fixture -B fixture-build -A x64
+          if ($LASTEXITCODE -ne 0) { throw 'Configure failed' }
+          cmake --build fixture-build --config Release
+          if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
+      - name: Test CLI without attach then attach only our owned fixture
+        shell: pwsh
+        run: python tests/hook_fixture/check_cli.py --engine engine/Textractor/x64 --fixture fixture-build/Release/KotobaHookFixture.exe --report hook-fixture-report.json
+      - name: Preserve synthetic test evidence only
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: hook-fixture-evidence
+          path: |
+            hook-fixture-report.json
+            hook-engine-audit.json
+          if-no-files-found: warn
